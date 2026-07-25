@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "obx-backend",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-25",
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true,
+  "compatibility_flags": ["nodejs_compat"],
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "obx-studio-db",
+      "database_id": "5c72c745-756a-425d-87e6-df9afc8fa2b8"
+    }
+  ],
+
+  "vars": {
+    "SUPABASE_URL": "https://bsrqhzesnsosgngifpzz.supabase.co"
+  }
+
+  // Secrets (set via `wrangler secret put`):
+  // OPENROUTER_API_KEY
+  // SUPABASE_JWT_SECRET  (not needed with JWKS approach, but kept for reference)
+  // ADMIN_USER_IDS       (comma-separated supabase user UUIDs)
+}
