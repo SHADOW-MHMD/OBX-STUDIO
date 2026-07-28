@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Cpu, GitBranch, Mail } from "lucide-react";
+import { Cpu, GitBranch } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 
 export default function LoginPage() {
@@ -20,14 +20,9 @@ export default function LoginPage() {
   const handleGitHub = async () => {
     await supabase.auth.signInWithOAuth({
       provider: "github",
-      options: { redirectTo: `${window.location.origin}/dashboard` },
-    });
-  };
-
-  const handleGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/dashboard` },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
   };
 
@@ -150,14 +145,6 @@ export default function LoginPage() {
                 >
                   <GitBranch size={16} />
                   Continue with GitHub
-                </button>
-                <button
-                  onClick={handleGoogle}
-                  className="btn btn-secondary"
-                  style={{ width: "100%", justifyContent: "center", padding: "0.625rem" }}
-                >
-                  <Mail size={16} />
-                  Continue with Google
                 </button>
               </div>
 
