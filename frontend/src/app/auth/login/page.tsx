@@ -18,12 +18,14 @@ export default function LoginPage() {
   const supabase = createClient();
 
   const handleGitHub = async () => {
-    await supabase.auth.signInWithOAuth({
+    setError(null);
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: "github",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
+    if (error) setError(error.message);
   };
 
   const handleEmail = async (e: React.FormEvent) => {
