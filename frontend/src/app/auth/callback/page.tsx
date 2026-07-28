@@ -12,28 +12,24 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const supabase = createClient();
 
-    const code = new URLSearchParams(window.location.search).get('code');
-
-    if (code) {
-      // Exchange the OAuth code for a session
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-        if (error) {
-          console.error('Auth error:', error.message);
-          router.replace('/auth/login?error=' + encodeURIComponent(error.message));
-        } else {
-          router.replace('/dashboard');
-        }
-      });
-    } else {
-      // No code — might be a hash-based session (email magic link, etc.)
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          router.replace('/dashboard');
-        } else {
-          router.replace('/auth/login');
-        }
-      });
-    }
+    // With implicit flow, Supabase puts the session in the URL hash.
+    // getSession() will automatically parse it from the hash and store it.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        router.replace('/dashboard');
+      } else {
+        // Fallback: listen for the auth state change triggered by hash parsing
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && session) {
+            subscription.unsubscribe();
+            router.replace('/dashboard');
+          } else if (event === 'SIGNED_OUT' || !session) {
+            subscription.unsubscribe();
+            router.replace('/auth/login');
+          }
+        });
+      }
+    });
   }, [router]);
 
   return (
