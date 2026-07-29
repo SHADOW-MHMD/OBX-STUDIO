@@ -53,15 +53,22 @@ function toChat(messages: Message[]): ChatMessage[] {
 
 function AssistantBubble({
   msg,
+  inputValue,
   onOptionClick,
 }: {
   msg: ChatMessage;
+  inputValue: string;
   onOptionClick: (opt: string) => void;
 }) {
   const p = msg.parsed;
   const question = p?.question ?? msg.content;
   const options = p?.options ?? [];
   const isStreaming = msg.streaming;
+
+  const selectedParts = inputValue
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   return (
     <div
@@ -86,33 +93,41 @@ function AssistantBubble({
       {/* Option chips */}
       {options.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-          {options.map((opt, i) => (
-            <button
-              key={i}
-              onClick={() => onOptionClick(opt)}
-              style={{
-                background: 'transparent',
-                border: '1px solid #222',
-                borderRadius: 6,
-                padding: '6px 12px',
-                fontSize: '0.8rem',
-                color: '#ccc',
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-                fontFamily: 'inherit',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = '#444';
-                (e.currentTarget as HTMLButtonElement).style.background = '#111';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = '#222';
-                (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-              }}
-            >
-              {opt}
-            </button>
-          ))}
+          {options.map((opt, i) => {
+            const isSelected = selectedParts.includes(opt);
+            return (
+              <button
+                key={i}
+                onClick={() => onOptionClick(opt)}
+                style={{
+                  background: isSelected ? '#fff' : 'transparent',
+                  border: isSelected ? '1px solid #fff' : '1px solid #222',
+                  borderRadius: 6,
+                  padding: '6px 12px',
+                  fontSize: '0.8rem',
+                  color: isSelected ? '#000' : '#ccc',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  fontFamily: 'inherit',
+                  fontWeight: isSelected ? 500 : 400,
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) {
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = '#444';
+                    (e.currentTarget as HTMLButtonElement).style.background = '#111';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) {
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = '#222';
+                    (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                  }
+                }}
+              >
+                {opt}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -598,7 +613,21 @@ export default function InterviewPage() {
 
   // ── Option chip click ────────────────────────────────────────────────
   const handleOptionClick = useCallback((opt: string) => {
-    setInputValue(opt);
+    setInputValue((prev) => {
+      // Parse current input by splitting on commas (only exact matches for toggle logic)
+      const parts = prev
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      
+      if (parts.includes(opt)) {
+        // Remove if already selected
+        return parts.filter((p) => p !== opt).join(', ');
+      } else {
+        // Add if not selected
+        return [...parts, opt].join(', ');
+      }
+    });
     inputRef.current?.focus();
   }, []);
 
@@ -733,6 +762,7 @@ export default function InterviewPage() {
                 <AssistantBubble
                   key={msg.id}
                   msg={msg}
+                  inputValue={inputValue}
                   onOptionClick={handleOptionClick}
                 />
               ) : (
