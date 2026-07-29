@@ -47,6 +47,11 @@ export const api = {
     get: (id: string) => apiFetch<InterviewWithMessages>(`/interview/${id}`),
     delete: (id: string) =>
       apiFetch(`/interview/${id}`, { method: "DELETE" }),
+    rename: (id: string, title: string) =>
+      apiFetch<{ ok: boolean; title: string }>(`/interview/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title }),
+      }),
     /**
      * Send a user message and get a streaming SSE response back.
      * Returns a ReadableStream.

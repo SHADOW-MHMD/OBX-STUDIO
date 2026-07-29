@@ -162,13 +162,18 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
       const decoder = new TextDecoder();
       let fullContent = "";
       let interviewDone = false;
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value);
-        // Parse SSE lines to extract content
-        for (const line of chunk.split("\n")) {
+        buffer += decoder.decode(value, { stream: true });
+        
+        let newlineIndex;
+        while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, newlineIndex).trim();
+          buffer = buffer.slice(newlineIndex + 1);
+          
           if (line.startsWith("data: ") && line !== "data: [DONE]") {
             try {
               const json = JSON.parse(line.slice(6));
@@ -215,6 +220,35 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
       Connection: "keep-alive",
     },
   });
+});
+
+/**
+ * PATCH /interview/:id — update interview metadata (e.g. title).
+ */
+interviewRoutes.patch("/:id", requireAuth, async (c) => {
+  const userId = c.get("userId" as never) as string;
+  const id = c.req.param("id");
+
+  const interview = await c.env.DB.prepare(
+    `SELECT id FROM interviews WHERE id = ? AND user_id = ?`
+  )
+    .bind(id, userId)
+    .first();
+
+  if (!interview) return c.json({ error: "Not found" }, 404);
+
+  const { title } = await c.req.json<{ title?: string }>();
+  if (title === undefined || !title.trim()) {
+    return c.json({ error: "Invalid title" }, 400);
+  }
+
+  await c.env.DB.prepare(
+    `UPDATE interviews SET title = ?, updated_at = datetime('now') WHERE id = ?`
+  )
+    .bind(title.trim(), id)
+    .run();
+
+  return c.json({ ok: true, title: title.trim() });
 });
 
 /**

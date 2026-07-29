@@ -1,6 +1,6 @@
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 // ponytail: hardcoded free model — upgrade path is to expose model picker in admin panel
-const FREE_MODEL = "nvidia/nemotron-3-ultra:free";
+const FREE_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
 
 export interface ChatMessage {
   role: "system" | "assistant" | "user";

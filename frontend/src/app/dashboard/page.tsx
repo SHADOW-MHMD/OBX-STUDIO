@@ -149,11 +149,34 @@ interface InterviewCardProps {
   isFirst: boolean;
   onDelete: (id: string) => void;
   deleting: boolean;
+  onRename: (id: string, newTitle: string) => void;
 }
 
-function InterviewCard({ interview, isFirst, onDelete, deleting }: InterviewCardProps) {
+function InterviewCard({ interview, isFirst, onDelete, deleting, onRename }: InterviewCardProps) {
   const isCompleted = interview.status === "completed";
   const title = interview.title?.trim() || "Untitled idea";
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(title);
+  const [savingTitle, setSavingTitle] = useState(false);
+
+  const handleSaveTitle = async () => {
+    if (!editValue.trim() || editValue.trim() === title) {
+      setIsEditing(false);
+      setEditValue(title);
+      return;
+    }
+    setSavingTitle(true);
+    try {
+      await api.interview.rename(interview.id, editValue.trim());
+      onRename(interview.id, editValue.trim());
+      setIsEditing(false);
+    } catch {
+      alert("Failed to rename interview");
+    } finally {
+      setSavingTitle(false);
+    }
+  };
 
   return (
     <div
@@ -174,19 +197,89 @@ function InterviewCard({ interview, isFirst, onDelete, deleting }: InterviewCard
     >
       {/* Left: title + date */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: "0.875rem",
-            fontWeight: 500,
-            color: "#fff",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            marginBottom: "0.25rem",
-          }}
-        >
-          {title}
-        </div>
+        {isEditing ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
+            <input
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveTitle();
+                if (e.key === "Escape") {
+                  setIsEditing(false);
+                  setEditValue(title);
+                }
+              }}
+              autoFocus
+              disabled={savingTitle}
+              style={{
+                fontSize: "0.875rem",
+                fontWeight: 500,
+                background: "#000",
+                color: "#fff",
+                border: "1px solid #333",
+                borderRadius: 4,
+                padding: "2px 6px",
+                outline: "none",
+                width: "100%",
+                maxWidth: 300,
+              }}
+            />
+            <button
+              onClick={handleSaveTitle}
+              disabled={savingTitle}
+              className="btn btn-primary"
+              style={{ padding: "2px 8px", fontSize: "0.75rem", height: "auto" }}
+            >
+              Save
+            </button>
+            <button
+              onClick={() => {
+                setIsEditing(false);
+                setEditValue(title);
+              }}
+              disabled={savingTitle}
+              className="btn btn-ghost"
+              style={{ padding: "2px 8px", fontSize: "0.75rem", height: "auto" }}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div
+            style={{
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              color: "#fff",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              marginBottom: "0.25rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem"
+            }}
+          >
+            {title}
+            <button
+              onClick={() => setIsEditing(true)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#444",
+                cursor: "pointer",
+                padding: "2px",
+                display: "inline-flex",
+                alignItems: "center",
+              }}
+              title="Rename project"
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#888")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#444")}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+            </button>
+          </div>
+        )}
         <div style={{ fontSize: "0.75rem", color: "#444" }}>
           {formatDate(interview.created_at)}
         </div>
@@ -564,6 +657,13 @@ export default function DashboardPage() {
                     isFirst={i === 0}
                     onDelete={handleDelete}
                     deleting={deletingId === iv.id}
+                    onRename={(id, newTitle) => {
+                      setInterviews((prev) =>
+                        prev.map((item) =>
+                          item.id === id ? { ...item, title: newTitle } : item
+                        )
+                      );
+                    }}
                   />
                 ))
               )}

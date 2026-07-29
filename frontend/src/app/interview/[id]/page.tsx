@@ -234,16 +234,45 @@ function Sidebar({
   status,
   messageCount,
   interviewId,
+  onRename,
 }: {
   title: string | null;
   status: 'in_progress' | 'completed';
   messageCount: number;
   interviewId: string;
+  onRename: (newTitle: string) => void;
 }) {
-  // Rough progress: assume ~10 questions max
   const questionCount = Math.ceil(messageCount / 2);
   const maxQuestions = 10;
   const progress = Math.min((questionCount / maxQuestions) * 100, 100);
+
+  const displayTitle = title?.trim() || 'Untitled interview';
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(displayTitle);
+  const [savingTitle, setSavingTitle] = useState(false);
+
+  // Sync state if title prop changes
+  useEffect(() => {
+    setEditValue(title?.trim() || 'Untitled interview');
+  }, [title]);
+
+  const handleSaveTitle = async () => {
+    if (!editValue.trim() || editValue.trim() === displayTitle) {
+      setIsEditing(false);
+      setEditValue(displayTitle);
+      return;
+    }
+    setSavingTitle(true);
+    try {
+      await api.interview.rename(interviewId, editValue.trim());
+      onRename(editValue.trim());
+      setIsEditing(false);
+    } catch {
+      alert("Failed to rename interview");
+    } finally {
+      setSavingTitle(false);
+    }
+  };
 
   return (
     <aside
@@ -286,17 +315,89 @@ function Sidebar({
         <p style={{ fontSize: '0.68rem', color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.375rem' }}>
           Session
         </p>
-        <p
-          style={{
-            fontSize: '0.85rem',
-            fontWeight: 500,
-            color: '#ccc',
-            lineHeight: 1.4,
-            wordBreak: 'break-word',
-          }}
-        >
-          {title ?? 'Untitled interview'}
-        </p>
+        {isEditing ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            <input
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveTitle();
+                if (e.key === "Escape") {
+                  setIsEditing(false);
+                  setEditValue(displayTitle);
+                }
+              }}
+              autoFocus
+              disabled={savingTitle}
+              style={{
+                fontSize: "0.85rem",
+                fontWeight: 500,
+                background: "#0a0a0a",
+                color: "#fff",
+                border: "1px solid #333",
+                borderRadius: 4,
+                padding: "4px 8px",
+                outline: "none",
+                width: "100%",
+              }}
+            />
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button
+                onClick={handleSaveTitle}
+                disabled={savingTitle}
+                className="btn btn-primary"
+                style={{ padding: "2px 8px", fontSize: "0.75rem", height: "auto", flex: 1 }}
+              >
+                Save
+              </button>
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditValue(displayTitle);
+                }}
+                disabled={savingTitle}
+                className="btn btn-ghost"
+                style={{ padding: "2px 8px", fontSize: "0.75rem", height: "auto", flex: 1 }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "0.5rem" }}>
+            <p
+              style={{
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                color: '#ccc',
+                lineHeight: 1.4,
+                wordBreak: 'break-word',
+              }}
+            >
+              {displayTitle}
+            </p>
+            <button
+              onClick={() => setIsEditing(true)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#444",
+                cursor: "pointer",
+                padding: "2px",
+                display: "inline-flex",
+                alignItems: "center",
+                flexShrink: 0,
+                marginTop: "2px",
+              }}
+              title="Rename session"
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#888")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#444")}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Status badge */}
@@ -585,6 +686,7 @@ export default function InterviewPage() {
           status={interviewStatus}
           messageCount={messages.length}
           interviewId={id}
+          onRename={(newTitle) => setInterviewTitle(newTitle)}
         />
 
         {/* Chat area */}
