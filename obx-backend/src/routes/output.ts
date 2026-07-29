@@ -51,14 +51,19 @@ outputRoutes.post("/:interviewId", requireAuth, async (c) => {
     .bind(interviewId)
     .all<Pick<DbMessage, "role" | "content">>();
 
-  const content = await chatCompletion(
-    [
-      ...messages.results as any,
-      { role: "user", content: OUTPUT_PROMPTS[type] },
-    ],
-    c.env.OPENROUTER_API_KEY,
-    type === "all" ? 6000 : 3000
-  );
+  let content: string;
+  try {
+    content = await chatCompletion(
+      [
+        ...messages.results as any,
+        { role: "user", content: OUTPUT_PROMPTS[type] },
+      ],
+      c.env.OPENROUTER_API_KEY,
+      type === "all" ? 4096 : 2048
+    );
+  } catch (error: any) {
+    return c.json({ error: "Failed to generate AI output", details: error.message }, 500);
+  }
 
   const outputId = nanoid();
   await c.env.DB.prepare(

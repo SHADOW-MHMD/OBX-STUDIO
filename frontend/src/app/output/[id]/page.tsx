@@ -113,9 +113,9 @@ export default function OutputPage(props: { params: Promise<{ id: string }> }) {
       };
       setOutputs(prev => [...prev, newOutput]);
       setActiveTab(newOutput.id);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Failed to generate output.");
+      alert(`Failed to generate output: ${e.message ?? "Unknown error"}`);
     } finally {
       setGenerating(null);
     }
