@@ -439,8 +439,9 @@ export default function InterviewPage() {
       const response = await api.interview.sendMessage(id, content);
 
       if (!response.ok) {
-        const errBody = await response.json().catch(() => ({ error: response.statusText }));
-        throw new Error((errBody as { error?: string }).error ?? 'Failed to send message');
+        const errBody = await response.json().catch(() => ({ error: response.statusText, details: "" }));
+        const errorMessage = (errBody as any).details ? `${(errBody as any).error}: ${(errBody as any).details}` : ((errBody as any).error ?? 'Failed to send message');
+        throw new Error(errorMessage);
       }
 
       let accumulated = '';

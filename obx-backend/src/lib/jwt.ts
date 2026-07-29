@@ -19,7 +19,7 @@ export async function verifySupabaseJWT(
   supabaseUrl: string
 ): Promise<SupabaseJWTPayload> {
   const JWKS = createRemoteJWKSet(
-    new URL(`${supabaseUrl}/auth/v1/jwks`)
+    new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`)
   );
   const { payload } = await jwtVerify(token, JWKS, {
     audience: "authenticated",

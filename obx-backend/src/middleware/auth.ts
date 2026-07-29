@@ -26,8 +26,8 @@ export async function requireAuth(
   let payload;
   try {
     payload = await verifySupabaseJWT(token, c.env.SUPABASE_URL);
-  } catch {
-    return c.json({ error: "Invalid token" }, 401);
+  } catch (error: any) {
+    return c.json({ error: "Invalid token", details: error.message }, 401);
   }
 
   const today = new Date().toISOString().split("T")[0];

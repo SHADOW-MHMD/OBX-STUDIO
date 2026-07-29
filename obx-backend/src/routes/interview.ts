@@ -142,10 +142,15 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
     .all<Pick<DbMessage, "role" | "content">>();
 
   // Stream AI response
-  const stream = await streamChatCompletion(
-    allMessages.results as any,
-    c.env.OPENROUTER_API_KEY
-  );
+  let stream: ReadableStream;
+  try {
+    stream = await streamChatCompletion(
+      allMessages.results as any,
+      c.env.OPENROUTER_API_KEY
+    );
+  } catch (error: any) {
+    return c.json({ error: "Failed to communicate with AI", details: error.message }, 500);
+  }
 
   // Tee the stream: one copy goes to client, one we accumulate to save to DB
   const [clientStream, saveStream] = stream.tee();

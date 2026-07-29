@@ -1,6 +1,6 @@
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 // ponytail: hardcoded free model — upgrade path is to expose model picker in admin panel
-const FREE_MODEL = "meta-llama/llama-3.1-8b-instruct:free";
+const FREE_MODEL = "nvidia/nemotron-3-ultra:free";
 
 export interface ChatMessage {
   role: "system" | "assistant" | "user";
@@ -32,7 +32,8 @@ export async function streamChatCompletion(
   });
 
   if (!res.ok || !res.body) {
-    throw new Error(`OpenRouter error: ${res.status}`);
+    const errorText = await res.text();
+    throw new Error(`OpenRouter error ${res.status}: ${errorText}`);
   }
 
   return res.body;

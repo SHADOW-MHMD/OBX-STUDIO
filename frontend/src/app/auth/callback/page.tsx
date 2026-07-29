@@ -12,24 +12,33 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const supabase = createClient();
 
-    // With implicit flow, Supabase puts the session in the URL hash.
-    // getSession() will automatically parse it from the hash and store it.
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+    // Listen for the auth state change first — this fires when Supabase
+    // detects the session from cookies/URL on page load.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        subscription.unsubscribe();
         router.replace('/dashboard');
-      } else {
-        // Fallback: listen for the auth state change triggered by hash parsing
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          if (event === 'SIGNED_IN' && session) {
-            subscription.unsubscribe();
-            router.replace('/dashboard');
-          } else if (event === 'SIGNED_OUT' || !session) {
-            subscription.unsubscribe();
-            router.replace('/auth/login');
-          }
-        });
+      } else if (event === 'SIGNED_OUT') {
+        subscription.unsubscribe();
+        router.replace('/auth/login');
       }
+      // Ignore INITIAL_SESSION with no session — wait for the real event
     });
+
+    // Also try getSession after a short delay as a fallback
+    // (in case the auth state change already fired before we subscribed)
+    const timer = setTimeout(async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        subscription.unsubscribe();
+        router.replace('/dashboard');
+      }
+    }, 1500);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
+    };
   }, [router]);
 
   return (
