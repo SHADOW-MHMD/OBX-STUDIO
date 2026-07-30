@@ -80,8 +80,7 @@ export const api = {
   },
 
   kanban: {
-    list: (interviewId: string) =>
-      apiFetch<KanbanItem[]>(`/kanban/${interviewId}`),
+    list: (interviewId: string) => apiFetch<KanbanItem[]>(`/kanban/${interviewId}`),
     update: (id: string, body: Partial<KanbanItem>) =>
       apiFetch(`/kanban/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     addItem: (interviewId: string, body: { title: string; description?: string }) =>
@@ -89,8 +88,11 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    delete: (id: string) =>
-      apiFetch(`/kanban/${id}`, { method: "DELETE" }),
+    delete: (id: string) => apiFetch(`/kanban/${id}`, { method: "DELETE" }),
+    autofill: (interviewId: string) =>
+      apiFetch<{ ok: boolean; count: number }>(`/kanban/${interviewId}/autofill`, {
+        method: "POST",
+      }),
   },
 
   admin: {

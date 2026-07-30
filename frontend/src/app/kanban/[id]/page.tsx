@@ -2,7 +2,7 @@
 
 export const runtime = 'edge';
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { api, type KanbanItem } from "@/lib/api";
@@ -44,14 +44,35 @@ export default function KanbanPage(props: { params: Promise<{ id: string }> }) {
     }
   }, [user, isLoading, router]);
 
+  const [isAutofilling, setIsAutofilling] = useState(false);
+
+  const fetchItems = useCallback(async () => {
+    try {
+      const data = await api.kanban.list(params.id);
+      setItems(data.sort((a, b) => a.position - b.position));
+    } catch (err) {
+      console.error(err);
+    }
+  }, [params.id]);
+
   useEffect(() => {
     if (user) {
-      api.kanban.list(params.id).then((data) => {
-        setItems(data.sort((a, b) => a.position - b.position));
-        setLoading(false);
-      }).catch(console.error);
+      fetchItems().finally(() => setLoading(false));
     }
-  }, [params.id, user]);
+  }, [user, fetchItems]);
+
+  const handleAutofill = async () => {
+    setIsAutofilling(true);
+    try {
+      await api.kanban.autofill(params.id);
+      await fetchItems();
+    } catch (err: any) {
+      console.error(err);
+      alert(`Autofill failed: ${err.message ?? "Unknown error"}`);
+    } finally {
+      setIsAutofilling(false);
+    }
+  };
 
   const onDragEnd = async (result: DropResult) => {
     const { source, destination, draggableId } = result;
@@ -110,12 +131,12 @@ export default function KanbanPage(props: { params: Promise<{ id: string }> }) {
       setAddingTo(null);
       setNewTaskTitle("");
       
-      // Update its status correctly in backend if status is not 'todo'
       if (status !== "todo") {
          await api.kanban.update(res.id, { status, position: newItem.position });
       }
     } catch (err) {
       console.error(err);
+      fetchItems(); // revert on error
     }
   };
 
@@ -125,6 +146,7 @@ export default function KanbanPage(props: { params: Promise<{ id: string }> }) {
       await api.kanban.delete(id);
     } catch (err) {
       console.error(err);
+      fetchItems(); // revert on error
     }
   };
 
@@ -156,11 +178,22 @@ export default function KanbanPage(props: { params: Promise<{ id: string }> }) {
     <div style={{ minHeight: "100vh", background: "#000", display: "flex", flexDirection: "column" }}>
       <Navbar />
       <main style={{ flex: 1, paddingTop: 88, paddingBottom: "2rem", paddingLeft: "1.5rem", paddingRight: "1.5rem", display: "flex", flexDirection: "column" }}>
-        <div style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "1rem" }}>
-          <Link href={`/output/${params.id}`} className="btn btn-ghost" style={{ padding: "0.5rem" }}>
-            <ArrowLeft size={16} /> Back to Output
-          </Link>
-          <h1 style={{ fontSize: "1.25rem", fontWeight: 700 }}>Kanban Board</h1>
+        <div style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <Link href={`/output/${params.id}`} className="btn btn-ghost" style={{ padding: "0.5rem" }}>
+              <ArrowLeft size={16} /> Back to Output
+            </Link>
+            <h1 style={{ fontSize: "1.25rem", fontWeight: 700 }}>Kanban Board</h1>
+          </div>
+          <button 
+            onClick={handleAutofill} 
+            disabled={isAutofilling} 
+            className="btn btn-primary"
+            style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 1rem", background: "#fff", color: "#000", border: "none", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 600, cursor: "pointer" }}
+          >
+            {isAutofilling ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+            {isAutofilling ? "Auto-filling..." : "Auto-fill Board with AI"}
+          </button>
         </div>
         
         <DragDropContext onDragEnd={onDragEnd}>
