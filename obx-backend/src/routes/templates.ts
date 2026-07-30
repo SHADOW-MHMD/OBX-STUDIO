@@ -3,12 +3,12 @@ import type { Env } from "../types/env";
 import { requireAuth } from "../middleware/auth";
 import type { DbTemplate } from "../types/db";
 
-const router = new Hono<{ Bindings: Env; Variables: { user_id: string } }>();
+const router = new Hono<{ Bindings: Env }>();
 
 router.use("*", requireAuth);
 
 router.get("/", async (c) => {
-  const userId = c.get("user_id");
+  const userId = c.get("userId" as never) as string;
   const db = c.env.DB;
 
   const result = await db
