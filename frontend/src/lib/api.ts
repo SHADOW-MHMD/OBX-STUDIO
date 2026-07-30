@@ -42,7 +42,7 @@ export const api = {
   },
 
   interview: {
-    create: () => apiFetch<{ id: string }>("/interview", { method: "POST" }),
+    create: (template_id: string) => apiFetch<{ id: string }>("/interview", { method: "POST", body: JSON.stringify({ template_id }) }),
     list: () => apiFetch<Interview[]>("/interview"),
     get: (id: string) => apiFetch<InterviewWithMessages>(`/interview/${id}`),
     delete: (id: string) =>
@@ -101,6 +101,10 @@ export const api = {
     updateUser: (id: string, body: { is_admin?: boolean; tier?: string; interviews_limit?: number }) =>
       apiFetch(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   },
+
+  templates: {
+    list: () => apiFetch<Template[]>("/templates"),
+  }
 };
 
 // ---- Types ----
@@ -196,4 +200,14 @@ export interface AdminUser {
   is_admin: boolean;
   created_at: string;
   last_active_date: string | null;
+}
+
+export interface Template {
+  id: string;
+  name: string;
+  type: string;
+  owner_id: string | null;
+  is_fork: boolean;
+  checklists: Record<string, string[]>;
+  created_at: string;
 }

@@ -7,6 +7,7 @@ import { outputRoutes } from "./routes/output";
 import { kanbanRoutes } from "./routes/kanban";
 import { adminRoutes } from "./routes/admin";
 import { userRoutes } from "./routes/user";
+import { templateRoutes } from "./routes/templates";
 import type { Env } from "./types/env";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -36,6 +37,7 @@ app.route("/output", outputRoutes);
 app.route("/kanban", kanbanRoutes);
 app.route("/admin", adminRoutes);
 app.route("/user", userRoutes);
+app.route("/templates", templateRoutes);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 app.onError((err, c) => {

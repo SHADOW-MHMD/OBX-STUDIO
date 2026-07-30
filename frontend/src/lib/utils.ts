@@ -56,6 +56,14 @@ export function parseInterviewResponse(text: string): {
   question?: string;
   options?: string[];
   context?: string;
+  progress?: {
+    problem: number;
+    users: number;
+    features: number;
+    tech: number;
+    monetization: number;
+    constraints: number;
+  };
   done?: boolean;
   summary?: string;
 } | null {

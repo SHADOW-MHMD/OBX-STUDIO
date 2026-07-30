@@ -1,6 +1,6 @@
-const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
-// ponytail: hardcoded free model — upgrade path is to expose model picker in admin panel
-const FREE_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
+const API_BASE = "https://integrate.api.nvidia.com/v1";
+// ponytail: using nvidia nim free tier for llama 3.3 70b
+const MODEL = "meta/llama-3.3-70b-instruct";
 
 export interface ChatMessage {
   role: "system" | "assistant" | "user";
@@ -15,19 +15,18 @@ export async function streamChatCompletion(
   messages: ChatMessage[],
   apiKey: string
 ): Promise<ReadableStream> {
-  const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+  const res = await fetch(`${API_BASE}/chat/completions`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://obx-studio.pages.dev",
-      "X-Title": "OBX-STUDIO",
+      "Accept": "text/event-stream"
     },
     body: JSON.stringify({
-      model: FREE_MODEL,
+      model: MODEL,
       messages,
       stream: true,
-      max_tokens: 1024,
+      max_tokens: 2048,
     }),
   });
 
@@ -47,16 +46,14 @@ export async function chatCompletion(
   apiKey: string,
   maxTokens = 4096
 ): Promise<string> {
-  const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+  const res = await fetch(`${API_BASE}/chat/completions`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://obx-studio.pages.dev",
-      "X-Title": "OBX-STUDIO",
     },
     body: JSON.stringify({
-      model: FREE_MODEL,
+      model: MODEL,
       messages,
       stream: false,
       max_tokens: maxTokens,

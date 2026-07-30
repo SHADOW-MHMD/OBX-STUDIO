@@ -10,6 +10,7 @@ import { useAuthStore } from '@/lib/store';
 import { api, type Message } from '@/lib/api';
 import { parseSSEStream, parseInterviewResponse } from '@/lib/utils';
 import { Navbar } from '@/components/layout/Navbar';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,6 +20,7 @@ interface ParsedAssistantMessage {
   context?: string;
   done?: boolean;
   summary?: string;
+  progress?: { problem: number; users: number; features: number; tech: number; monetization: number; constraints: number };
   raw: string;
 }
 
@@ -55,10 +57,12 @@ function AssistantBubble({
   msg,
   inputValue,
   onOptionClick,
+  isHeavyTurn,
 }: {
   msg: ChatMessage;
   inputValue: string;
   onOptionClick: (opt: string) => void;
+  isHeavyTurn: boolean;
 }) {
   const p = msg.parsed;
   const question = p?.question ?? msg.content;
@@ -69,6 +73,38 @@ function AssistantBubble({
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
+
+  if (isStreaming && !msg.content) {
+    if (isHeavyTurn) {
+      return (
+        <div style={{ marginBottom: '2rem' }} className="animate-fadein">
+          <div style={{
+            background: 'rgba(59,130,246,0.05)',
+            border: '1px solid rgba(59,130,246,0.1)',
+            borderRadius: 12,
+            padding: '1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+            maxWidth: 400
+          }}>
+            <Loader2 size={18} color="#3b82f6" className="animate-spin" />
+            <span style={{ color: '#3b82f6', fontSize: '0.85rem' }}>
+              Judging coverage across all dimensions... this may take a few seconds! 🕵️‍♂️
+            </span>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <div style={{ marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1.125rem', fontWeight: 500, color: '#fff', lineHeight: 1.5, letterSpacing: '-0.01em' }}>
+          <span className="cursor-blink">|</span>
+        </h2>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -250,16 +286,27 @@ function Sidebar({
   messageCount,
   interviewId,
   onRename,
+  progressObj,
 }: {
   title: string | null;
   status: 'in_progress' | 'completed';
   messageCount: number;
   interviewId: string;
   onRename: (newTitle: string) => void;
+  progressObj?: { problem: number; users: number; features: number; tech: number; monetization: number; constraints: number };
 }) {
   const questionCount = Math.ceil(messageCount / 2);
   const maxQuestions = 10;
-  const progress = Math.min((questionCount / maxQuestions) * 100, 100);
+  const oldProgress = Math.min((questionCount / maxQuestions) * 100, 100);
+
+  const radarData = [
+    { subject: 'Problem', A: progressObj?.problem ?? 0, fullMark: 100 },
+    { subject: 'Users', A: progressObj?.users ?? 0, fullMark: 100 },
+    { subject: 'Features', A: progressObj?.features ?? 0, fullMark: 100 },
+    { subject: 'Tech', A: progressObj?.tech ?? 0, fullMark: 100 },
+    { subject: 'Money', A: progressObj?.monetization ?? 0, fullMark: 100 },
+    { subject: 'Limits', A: progressObj?.constraints ?? 0, fullMark: 100 },
+  ];
 
   const displayTitle = title?.trim() || 'Untitled interview';
   const [isEditing, setIsEditing] = useState(false);
@@ -443,12 +490,24 @@ function Sidebar({
           <div
             style={{
               height: '100%',
-              width: `${progress}%`,
+              width: `${oldProgress}%`,
               background: status === 'completed' ? '#22c55e' : '#555',
               borderRadius: 99,
               transition: 'width 0.5s ease',
             }}
           />
+        </div>
+        
+        {/* Radar Chart */}
+        <div style={{ width: '100%', height: 180, marginTop: '1rem', marginLeft: '-15px' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarData}>
+              <PolarGrid stroke="#222" />
+              <PolarAngleAxis dataKey="subject" tick={{ fill: '#888', fontSize: 10 }} />
+              <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+              <Radar name="Coverage" dataKey="A" stroke="#22c55e" fill="#22c55e" fillOpacity={0.2} isAnimationActive={true} />
+            </RadarChart>
+          </ResponsiveContainer>
         </div>
         <p style={{ fontSize: '0.72rem', color: '#555', marginTop: '0.375rem' }}>
           ~{questionCount} question{questionCount !== 1 ? 's' : ''} answered
@@ -687,6 +746,10 @@ export default function InterviewPage() {
     );
   }
 
+  // Get latest progress
+  const latestAssistantMessageWithProgress = [...messages].reverse().find(m => m.role === 'assistant' && m.parsed?.progress);
+  const progressObj = latestAssistantMessageWithProgress?.parsed?.progress;
+
   // ── Main chat UI ──────────────────────────────────────────────────────
   return (
     <div
@@ -716,6 +779,7 @@ export default function InterviewPage() {
           messageCount={messages.length}
           interviewId={id}
           onRename={(newTitle) => setInterviewTitle(newTitle)}
+          progressObj={progressObj}
         />
 
         {/* Chat area */}
@@ -764,6 +828,7 @@ export default function InterviewPage() {
                   msg={msg}
                   inputValue={inputValue}
                   onOptionClick={handleOptionClick}
+                  isHeavyTurn={messages.filter(m => m.role === 'user').length % 2 === 0}
                 />
               ) : (
                 <UserBubble key={msg.id} msg={msg} />

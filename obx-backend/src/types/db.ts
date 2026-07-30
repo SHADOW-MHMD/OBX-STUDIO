@@ -19,6 +19,7 @@ export interface DbUser {
 export interface DbInterview {
   id: string;
   user_id: string;
+  template_id: string | null;
   title: string | null;
   status: "in_progress" | "completed";
   created_at: string;
@@ -50,6 +51,17 @@ export interface DbKanbanItem {
   description: string | null;
   status: "todo" | "in_progress" | "done";
   position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbTemplate {
+  id: string;
+  name: string;
+  type: "saas" | "consumer" | "marketplace" | "internal";
+  owner_id: string | null;
+  is_fork: boolean;
+  checklists_json: string;
   created_at: string;
   updated_at: string;
 }

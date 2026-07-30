@@ -1,16 +1,16 @@
 import { Hono } from "hono";
 import { requireAuth } from "../middleware/auth";
 import { streamChatCompletion } from "../lib/openrouter";
-import { INTERVIEW_SYSTEM_PROMPT } from "../lib/prompts";
+import { getInterviewSystemPrompt } from "../lib/prompts";
 import type { Env } from "../types/env";
-import type { DbUser, DbMessage } from "../types/db";
+import type { DbUser, DbMessage, DbTemplate } from "../types/db";
 import { nanoid } from "../lib/nanoid";
 
 export const interviewRoutes = new Hono<{ Bindings: Env }>();
 
 /**
  * POST /interview — create a new interview session.
- * Checks daily limit before creating.
+ * Checks daily limit before creating. Requires template_id.
  */
 interviewRoutes.post("/", requireAuth, async (c) => {
   const userId = c.get("userId" as never) as string;
@@ -27,12 +27,22 @@ interviewRoutes.post("/", requireAuth, async (c) => {
     );
   }
 
+  const { template_id } = await c.req.json<{ template_id: string }>().catch(() => ({ template_id: "system-saas" }));
+
+  const template = await c.env.DB.prepare(
+    `SELECT * FROM templates WHERE id = ?`
+  ).bind(template_id).first<DbTemplate>();
+
+  if (!template) {
+    return c.json({ error: "Template not found" }, 404);
+  }
+
   const id = nanoid();
   await c.env.DB.prepare(
-    `INSERT INTO interviews (id, user_id, status, created_at, updated_at)
-     VALUES (?, ?, 'in_progress', datetime('now'), datetime('now'))`
+    `INSERT INTO interviews (id, user_id, template_id, status, created_at, updated_at)
+     VALUES (?, ?, ?, 'in_progress', datetime('now'), datetime('now'))`
   )
-    .bind(id, userId)
+    .bind(id, userId, template_id)
     .run();
 
   // Increment daily usage
@@ -43,12 +53,14 @@ interviewRoutes.post("/", requireAuth, async (c) => {
     .bind(userId)
     .run();
 
-  // Save system message
+  // Save system message using dynamic prompt generator
+  const systemPrompt = getInterviewSystemPrompt(template.checklists_json, false);
+
   await c.env.DB.prepare(
     `INSERT INTO messages (id, interview_id, role, content, created_at)
      VALUES (?, ?, 'system', ?, datetime('now'))`
   )
-    .bind(nanoid(), id, INTERVIEW_SYSTEM_PROMPT)
+    .bind(nanoid(), id, systemPrompt)
     .run();
 
   return c.json({ id }, 201);
@@ -61,11 +73,10 @@ interviewRoutes.get("/", requireAuth, async (c) => {
   const userId = c.get("userId" as never) as string;
 
   const result = await c.env.DB.prepare(
-    `SELECT i.*, o.type as output_type, o.id as output_id
-     FROM interviews i
-     LEFT JOIN outputs o ON o.interview_id = i.id
-     WHERE i.user_id = ?
-     ORDER BY i.updated_at DESC`
+    `SELECT *
+     FROM interviews
+     WHERE user_id = ?
+     ORDER BY updated_at DESC`
   )
     .bind(userId)
     .all();
@@ -136,10 +147,24 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
 
   // Load full message history for this interview
   const allMessages = await c.env.DB.prepare(
-    `SELECT role, content FROM messages WHERE interview_id = ? ORDER BY created_at ASC`
+    `SELECT id, role, content FROM messages WHERE interview_id = ? ORDER BY created_at ASC`
   )
     .bind(id)
-    .all<Pick<DbMessage, "role" | "content">>();
+    .all<{ id: string, role: string, content: string }>();
+
+  const totalUserMessages = allMessages.results.filter(m => m.role === "user").length;
+  const isHeavyTurn = totalUserMessages > 0 && totalUserMessages % 2 === 0;
+
+  // Retrieve template to update system prompt dynamically for this turn
+  const templateId = (interview as any).template_id || "system-saas";
+  const template = await c.env.DB.prepare(`SELECT checklists_json FROM templates WHERE id = ?`).bind(templateId).first<{ checklists_json: string }>();
+  
+  if (template) {
+    const systemMessageIndex = allMessages.results.findIndex(m => m.role === "system");
+    if (systemMessageIndex !== -1) {
+      allMessages.results[systemMessageIndex].content = getInterviewSystemPrompt(template.checklists_json, isHeavyTurn);
+    }
+  }
 
   // Stream AI response
   let stream: ReadableStream;
