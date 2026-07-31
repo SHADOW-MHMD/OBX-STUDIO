@@ -20,6 +20,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const profile = await api.auth.me();
         setUser(profile);
+        
+        if (profile.theme_accent && typeof document !== "undefined") {
+          const colorMap: Record<string, string> = {
+            cyan: "#06b6d4",
+            violet: "#8b5cf6",
+            orange: "#f97316"
+          };
+          const hex = colorMap[profile.theme_accent] || profile.theme_accent;
+          document.documentElement.style.setProperty("--theme-accent", hex);
+          document.documentElement.style.setProperty("--theme-accent-dim", `color-mix(in srgb, ${hex} 15%, transparent)`);
+        }
       } catch {
         setUser(null);
       } finally {

@@ -13,6 +13,7 @@ export default function SettingsPage() {
   
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("nvidia/nemotron-3-ultra-550b-a55b:free");
+  const [themeAccent, setThemeAccent] = useState("cyan");
   
   const [savingKey, setSavingKey] = useState(false);
   const [savingModel, setSavingModel] = useState(false);
@@ -26,6 +27,7 @@ export default function SettingsPage() {
       else {
         setModel(user.openrouter_model || "nvidia/nemotron-3-ultra-550b-a55b:free");
         setDisplayName(user.display_name || "");
+        setThemeAccent(user.theme_accent || "cyan");
       }
     }
   }, [user, isLoading, router]);
@@ -75,6 +77,21 @@ export default function SettingsPage() {
       alert(err.message || "Failed to update profile.");
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handleSaveTheme = async (color: string) => {
+    setThemeAccent(color);
+    const colorMap: Record<string, string> = { cyan: "#06b6d4", violet: "#8b5cf6", orange: "#f97316" };
+    const hex = colorMap[color] || color;
+    document.documentElement.style.setProperty("--theme-accent", hex);
+    document.documentElement.style.setProperty("--theme-accent-dim", `color-mix(in srgb, ${hex} 15%, transparent)`);
+    try {
+      await api.user.updateSettings({ theme_accent: color });
+      const updatedUser = await api.auth.me();
+      setUser(updatedUser);
+    } catch (err: any) {
+      alert(err.message || "Failed to update theme.");
     }
   };
 
@@ -233,6 +250,49 @@ export default function SettingsPage() {
                   {savingModel ? <Loader2 size={16} className="animate-spin" /> : "Save Model"}
                 </button>
               </form>
+            </div>
+          </div>
+
+          {/* Theme Accent Selection */}
+          <div style={{ background: "#0a0a0a", border: "1px solid #1a1a1a", borderRadius: 12, overflow: "hidden" }}>
+            <div style={{ padding: "1.5rem", borderBottom: "1px solid #1a1a1a", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <div style={{ width: 18, height: 18, borderRadius: "50%", background: "var(--theme-accent)" }}></div>
+              <h2 style={{ fontSize: "1.1rem", fontWeight: 500, color: "#fff" }}>Theme Accent</h2>
+            </div>
+            <div style={{ padding: "1.5rem" }}>
+              <p style={{ color: "#888", fontSize: "0.9rem", marginBottom: "1.5rem", lineHeight: 1.5 }}>
+                Select your preferred accent color. This will be applied across the entire app.
+              </p>
+              
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                {[
+                  { id: "cyan", name: "Cyan", hex: "#06b6d4" },
+                  { id: "violet", name: "Violet", hex: "#8b5cf6" },
+                  { id: "orange", name: "Orange", hex: "#f97316" }
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => handleSaveTheme(t.id)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.75rem",
+                      background: themeAccent === t.id ? "#1a1a1a" : "#000",
+                      border: `1px solid ${themeAccent === t.id ? t.hex : "#222"}`,
+                      borderRadius: 8,
+                      padding: "0.75rem 1.25rem",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      color: "#fff",
+                      boxShadow: themeAccent === t.id ? `0 0 0 1px ${t.hex}33, 0 4px 12px ${t.hex}22` : "none"
+                    }}
+                  >
+                    <div style={{ width: 16, height: 16, borderRadius: "50%", background: t.hex }}></div>
+                    <span style={{ fontSize: "0.9rem", fontWeight: 500 }}>{t.name}</span>
+                    {themeAccent === t.id && <Check size={16} color={t.hex} style={{ marginLeft: "0.5rem" }} />}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

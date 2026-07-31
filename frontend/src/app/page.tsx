@@ -206,9 +206,7 @@ export default function LandingPage() {
               target="_blank"
               rel="noreferrer"
               className="btn btn-secondary"
-              style={{ padding: "0.75rem 1.5rem", fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.5rem" }}
-            >
-              <Github size={18} />
+              >
               Star on GitHub
             </a>
           </div>

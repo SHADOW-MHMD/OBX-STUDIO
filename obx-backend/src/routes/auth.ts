@@ -25,6 +25,7 @@ authRoutes.get("/me", requireAuth, async (c) => {
     is_admin: dbUser.is_admin,
     has_key: !!(dbUser as any).openrouter_key,
     openrouter_model: (dbUser as any).openrouter_model || "nvidia/nemotron-3-ultra-550b-a55b:free",
+    theme_accent: (dbUser as any).theme_accent || "cyan",
   }, 200, {
     "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
     "Pragma": "no-cache",

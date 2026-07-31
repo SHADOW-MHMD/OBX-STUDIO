@@ -43,9 +43,10 @@ userRoutes.get("/settings", requireAuth, async (c) => {
 /** PATCH /user/settings — update user settings */
 userRoutes.patch("/settings", requireAuth, async (c) => {
   const userId = c.get("userId" as never) as string;
-  const { openrouter_key, openrouter_model } = await c.req.json<{
+  const { openrouter_key, openrouter_model, theme_accent } = await c.req.json<{
     openrouter_key?: string;
     openrouter_model?: string;
+    theme_accent?: string;
   }>();
 
   const updates: string[] = [];
@@ -69,6 +70,11 @@ userRoutes.patch("/settings", requireAuth, async (c) => {
       updates.push("openrouter_model = ?");
       params.push(openrouter_model.trim());
     }
+  }
+
+  if (theme_accent !== undefined) {
+    updates.push("theme_accent = ?");
+    params.push(theme_accent.trim());
   }
 
   if (updates.length > 0) {

@@ -19,10 +19,14 @@
 
   "vars": {
     "SUPABASE_URL": "https://bsrqhzesnsosgngifpzz.supabase.co"
-  }
+  },
 
   // Secrets (set via `wrangler secret put`):
   // OPENROUTER_API_KEY
   // SUPABASE_JWT_SECRET  (not needed with JWKS approach, but kept for reference)
   // ADMIN_USER_IDS       (comma-separated supabase user UUIDs)
+  
+  "ai": {
+    "binding": "AI"
+  }
 }

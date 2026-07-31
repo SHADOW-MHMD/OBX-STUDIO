@@ -23,22 +23,14 @@ interviewRoutes.post("/", requireAuth, async (c) => {
     );
   }
 
-  const { template_id } = await c.req.json<{ template_id: string }>().catch(() => ({ template_id: "system-saas" }));
-
-  const template = await c.env.DB.prepare(
-    `SELECT * FROM templates WHERE id = ?`
-  ).bind(template_id).first<DbTemplate>();
-
-  if (!template) {
-    return c.json({ error: "Template not found" }, 404);
-  }
+  const { personaId } = await c.req.json<{ personaId: string }>().catch(() => ({ personaId: "pm" }));
 
   const id = nanoid();
   await c.env.DB.prepare(
-    `INSERT INTO interviews (id, user_id, template_id, status, created_at, updated_at)
+    `INSERT INTO interviews (id, user_id, persona, status, created_at, updated_at)
      VALUES (?, ?, ?, 'in_progress', datetime('now'), datetime('now'))`
   )
-    .bind(id, userId, template_id)
+    .bind(id, userId, personaId)
     .run();
 
   // Increment daily usage
@@ -50,7 +42,7 @@ interviewRoutes.post("/", requireAuth, async (c) => {
     .run();
 
   // Save system message using dynamic prompt generator
-  const systemPrompt = getInterviewSystemPrompt(template.checklists_json, false);
+  const systemPrompt = getInterviewSystemPrompt(personaId, false);
 
   await c.env.DB.prepare(
     `INSERT INTO messages (id, interview_id, role, content, created_at)
@@ -151,15 +143,12 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
   const totalUserMessages = allMessages.results.filter(m => m.role === "user").length;
   const isHeavyTurn = totalUserMessages > 0 && totalUserMessages % 2 === 0;
 
-  // Retrieve template to update system prompt dynamically for this turn
-  const templateId = (interview as any).template_id || "system-saas";
-  const template = await c.env.DB.prepare(`SELECT checklists_json FROM templates WHERE id = ?`).bind(templateId).first<{ checklists_json: string }>();
+  // Retrieve persona to update system prompt dynamically for this turn
+  const personaId = (interview as any).persona || "pm";
   
-  if (template) {
-    const systemMessageIndex = allMessages.results.findIndex(m => m.role === "system");
-    if (systemMessageIndex !== -1) {
-      allMessages.results[systemMessageIndex].content = getInterviewSystemPrompt(template.checklists_json, isHeavyTurn);
-    }
+  const systemMessageIndex = allMessages.results.findIndex(m => m.role === "system");
+  if (systemMessageIndex !== -1) {
+    allMessages.results[systemMessageIndex].content = getInterviewSystemPrompt(personaId, isHeavyTurn);
   }
 
   // Stream AI response

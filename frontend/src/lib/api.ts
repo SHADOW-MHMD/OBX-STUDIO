@@ -39,12 +39,16 @@ export const api = {
 
   user: {
     stats: () => apiFetch<UserStats>("/user/stats"),
-    updateSettings: (body: { openrouter_key?: string; openrouter_model?: string }) =>
-      apiFetch("/user/settings", { method: "PATCH", body: JSON.stringify(body) }),
+    updateSettings: (body: { openrouter_key?: string; openrouter_model?: string; theme_accent?: string }) =>
+      apiFetch<{ ok: boolean }>("/user/settings", { method: "PATCH", body: JSON.stringify(body) }),
   },
 
   interview: {
-    create: (template_id: string) => apiFetch<{ id: string }>("/interview", { method: "POST", body: JSON.stringify({ template_id }) }),
+    create: (personaId: string) =>
+      apiFetch<{ id: string }>("/interview", {
+        method: "POST",
+        body: JSON.stringify({ personaId }),
+      }),
     list: () => apiFetch<Interview[]>("/interview"),
     get: (id: string) => apiFetch<InterviewWithMessages>(`/interview/${id}`),
     delete: (id: string) =>
@@ -116,7 +120,7 @@ export interface UserProfile {
   email: string;
   display_name: string | null;
   avatar_url: string | null;
-  tier: "free" | "paid";
+  tier: "free" | "pro";
   interviews_used_today: number;
   interviews_limit: number;
   streak: number;
@@ -125,6 +129,7 @@ export interface UserProfile {
   is_admin: boolean;
   has_key: boolean;
   openrouter_model: string;
+  theme_accent: string;
 }
 
 export interface UserStats {
