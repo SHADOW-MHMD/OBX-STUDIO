@@ -534,15 +534,23 @@ export default function DashboardPage() {
             <div style={{ display: "flex", gap: "0.75rem", flexShrink: 0 }}>
               <button
                 onClick={() => {
-                  const current = localStorage.getItem("openrouter_api_key") || "";
-                  const key = window.prompt("Enter your OpenRouter API Key for BYOK (leave blank to remove):", current);
+                  const currentKey = localStorage.getItem("openrouter_api_key") || "";
+                  const key = window.prompt("Enter your OpenRouter API Key for BYOK (leave blank to remove):", currentKey);
                   if (key !== null) {
                     if (key.trim() === "") {
                       localStorage.removeItem("openrouter_api_key");
-                      alert("BYOK key removed. App will now use default backend limits.");
+                      localStorage.removeItem("openrouter_model");
+                      alert("BYOK settings removed. App will now use default backend limits.");
                     } else {
                       localStorage.setItem("openrouter_api_key", key.trim());
-                      alert("BYOK key saved! It will be used for all future LLM requests.");
+                      
+                      const currentModel = localStorage.getItem("openrouter_model") || "nvidia/nemotron-3-ultra-550b-a55b:free";
+                      const model = window.prompt("Enter the OpenRouter Model ID you want to use:", currentModel);
+                      if (model && model.trim() !== "") {
+                        localStorage.setItem("openrouter_model", model.trim());
+                      }
+                      
+                      alert("BYOK settings saved! They will be used for all future LLM requests.");
                     }
                   }
                 }}

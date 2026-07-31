@@ -85,13 +85,15 @@ kanbanRoutes.post("/:interviewId/autofill", requireAuth, async (c) => {
   let jsonString = "[]";
   try {
     const openRouterKey = c.req.header("X-OpenRouter-Key") ?? c.env.OPENROUTER_API_KEY;
+    const openRouterModel = c.req.header("X-OpenRouter-Model") || undefined;
     jsonString = await chatCompletion(
       [
         { role: "system", content: "You are a helpful assistant that strictly outputs JSON." },
         { role: "user", content: `Here is the product spec:\n\n${output.content}\n\n${TASK_BREAKDOWN_PROMPT}` }
       ],
       openRouterKey,
-      2048
+      2048,
+      openRouterModel
     );
   } catch (error: any) {
     return c.json({ error: "Failed to generate tasks via AI", details: error.message }, 500);

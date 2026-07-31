@@ -23,6 +23,9 @@ async function apiFetch<T>(
   if (typeof window !== "undefined") {
     const byok = localStorage.getItem("openrouter_api_key");
     if (byok) headers["X-OpenRouter-Key"] = byok;
+    
+    const byom = localStorage.getItem("openrouter_model");
+    if (byom) headers["X-OpenRouter-Model"] = byom;
   }
 
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
@@ -71,6 +74,9 @@ export const api = {
       if (typeof window !== "undefined") {
         const byok = localStorage.getItem("openrouter_api_key");
         if (byok) headers["X-OpenRouter-Key"] = byok;
+        
+        const byom = localStorage.getItem("openrouter_model");
+        if (byom) headers["X-OpenRouter-Model"] = byom;
       }
       return fetch(`${BASE}/interview/${id}/message`, {
         method: "POST",

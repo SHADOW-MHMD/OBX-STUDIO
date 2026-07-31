@@ -13,7 +13,8 @@ export interface ChatMessage {
  */
 export async function streamChatCompletion(
   messages: ChatMessage[],
-  apiKey: string
+  apiKey: string,
+  model = MODEL
 ): Promise<ReadableStream> {
   const res = await fetch(`${API_BASE}/chat/completions`, {
     method: "POST",
@@ -23,7 +24,7 @@ export async function streamChatCompletion(
       "Accept": "text/event-stream"
     },
     body: JSON.stringify({
-      model: MODEL,
+      model,
       messages,
       stream: true,
       max_tokens: 2048,
@@ -44,7 +45,8 @@ export async function streamChatCompletion(
 export async function chatCompletion(
   messages: ChatMessage[],
   apiKey: string,
-  maxTokens = 4096
+  maxTokens = 4096,
+  model = MODEL
 ): Promise<string> {
   const res = await fetch(`${API_BASE}/chat/completions`, {
     method: "POST",
@@ -53,7 +55,7 @@ export async function chatCompletion(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: MODEL,
+      model,
       messages,
       stream: false,
       max_tokens: maxTokens,

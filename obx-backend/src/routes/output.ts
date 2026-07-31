@@ -54,13 +54,15 @@ outputRoutes.post("/:interviewId", requireAuth, async (c) => {
   let content: string;
   try {
     const openRouterKey = c.req.header("X-OpenRouter-Key") ?? c.env.OPENROUTER_API_KEY;
+    const openRouterModel = c.req.header("X-OpenRouter-Model") || undefined;
     content = await chatCompletion(
       [
         ...messages.results as any,
         { role: "user", content: OUTPUT_PROMPTS[type] },
       ],
       openRouterKey,
-      type === "all" ? 4096 : 2048
+      type === "all" ? 4096 : 2048,
+      openRouterModel
     );
   } catch (error: any) {
     return c.json({ error: "Failed to generate AI output", details: error.message }, 500);
@@ -88,12 +90,14 @@ outputRoutes.post("/:interviewId", requireAuth, async (c) => {
 
       try {
         const openRouterKey = c.req.header("X-OpenRouter-Key") ?? c.env.OPENROUTER_API_KEY;
+        const openRouterModel = c.req.header("X-OpenRouter-Model") || undefined;
         const tasksRaw = await chatCompletion(
           [
             { role: "user", content: `Here is the app spec:\n\n${content}\n\n${TASK_BREAKDOWN_PROMPT}` },
           ],
           openRouterKey,
-          1500
+          1500,
+          openRouterModel
         );
 
         const tasks = JSON.parse(tasksRaw) as Array<{
