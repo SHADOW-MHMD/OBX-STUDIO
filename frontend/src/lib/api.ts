@@ -19,6 +19,12 @@ async function apiFetch<T>(
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
+  // BYOK logic
+  if (typeof window !== "undefined") {
+    const byok = localStorage.getItem("openrouter_api_key");
+    if (byok) headers["X-OpenRouter-Key"] = byok;
+  }
+
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -58,12 +64,17 @@ export const api = {
      */
     sendMessage: async (id: string, content: string): Promise<Response> => {
       const token = await getToken();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+      if (typeof window !== "undefined") {
+        const byok = localStorage.getItem("openrouter_api_key");
+        if (byok) headers["X-OpenRouter-Key"] = byok;
+      }
       return fetch(`${BASE}/interview/${id}/message`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers,
         body: JSON.stringify({ content }),
       });
     },

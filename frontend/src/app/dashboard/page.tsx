@@ -531,14 +531,35 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            <Link
-              href="/interview/new"
-              className="btn btn-primary"
-              style={{ flexShrink: 0, gap: "0.375rem", fontSize: "0.875rem" }}
-            >
-              <Plus size={15} />
-              Start New Interview
-            </Link>
+            <div style={{ display: "flex", gap: "0.75rem", flexShrink: 0 }}>
+              <button
+                onClick={() => {
+                  const current = localStorage.getItem("openrouter_api_key") || "";
+                  const key = window.prompt("Enter your OpenRouter API Key for BYOK (leave blank to remove):", current);
+                  if (key !== null) {
+                    if (key.trim() === "") {
+                      localStorage.removeItem("openrouter_api_key");
+                      alert("BYOK key removed. App will now use default backend limits.");
+                    } else {
+                      localStorage.setItem("openrouter_api_key", key.trim());
+                      alert("BYOK key saved! It will be used for all future LLM requests.");
+                    }
+                  }
+                }}
+                className="btn btn-ghost"
+                style={{ gap: "0.375rem", fontSize: "0.875rem" }}
+              >
+                BYOK Settings
+              </button>
+              <Link
+                href="/interview/new"
+                className="btn btn-primary"
+                style={{ gap: "0.375rem", fontSize: "0.875rem" }}
+              >
+                <Plus size={15} />
+                Start New Interview
+              </Link>
+            </div>
           </div>
 
           {/* ── Stat Cards ── */}

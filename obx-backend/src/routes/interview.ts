@@ -169,9 +169,10 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
   // Stream AI response
   let stream: ReadableStream;
   try {
+    const openRouterKey = c.req.header("X-OpenRouter-Key") ?? c.env.OPENROUTER_API_KEY;
     stream = await streamChatCompletion(
       allMessages.results as any,
-      c.env.OPENROUTER_API_KEY
+      openRouterKey
     );
   } catch (error: any) {
     return c.json({ error: "Failed to communicate with AI", details: error.message }, 500);

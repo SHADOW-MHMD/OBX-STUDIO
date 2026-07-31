@@ -53,12 +53,13 @@ outputRoutes.post("/:interviewId", requireAuth, async (c) => {
 
   let content: string;
   try {
+    const openRouterKey = c.req.header("X-OpenRouter-Key") ?? c.env.OPENROUTER_API_KEY;
     content = await chatCompletion(
       [
         ...messages.results as any,
         { role: "user", content: OUTPUT_PROMPTS[type] },
       ],
-      c.env.OPENROUTER_API_KEY,
+      openRouterKey,
       type === "all" ? 4096 : 2048
     );
   } catch (error: any) {
@@ -86,11 +87,12 @@ outputRoutes.post("/:interviewId", requireAuth, async (c) => {
       if ((existing?.count ?? 0) > 0) return;
 
       try {
+        const openRouterKey = c.req.header("X-OpenRouter-Key") ?? c.env.OPENROUTER_API_KEY;
         const tasksRaw = await chatCompletion(
           [
             { role: "user", content: `Here is the app spec:\n\n${content}\n\n${TASK_BREAKDOWN_PROMPT}` },
           ],
-          c.env.OPENROUTER_API_KEY,
+          openRouterKey,
           1500
         );
 

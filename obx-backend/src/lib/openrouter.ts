@@ -1,6 +1,6 @@
 const API_BASE = "https://openrouter.ai/api/v1";
-// ponytail: using openrouter free tier for llama 3.3 70b
-const MODEL = "meta-llama/llama-3.3-70b-instruct:free";
+// ponytail: using openrouter free tier for nemotron
+const MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
 
 export interface ChatMessage {
   role: "system" | "assistant" | "user";
