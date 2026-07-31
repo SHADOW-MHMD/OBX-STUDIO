@@ -8,6 +8,8 @@ import {
   Edge,
   NodeTypes,
   ConnectionMode,
+  type NodeChange,
+  type EdgeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -24,8 +26,8 @@ const nodeTypes: NodeTypes = {
 interface NeuralCanvasProps {
   nodes: Node[];
   edges: Edge[];
-  onNodesChange?: (nodes: Node[]) => void;
-  onEdgesChange?: (edges: Edge[]) => void;
+  onNodesChange?: (changes: NodeChange[]) => void;
+  onEdgesChange?: (changes: EdgeChange[]) => void;
 }
 
 export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
