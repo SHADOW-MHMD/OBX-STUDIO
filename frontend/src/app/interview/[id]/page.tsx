@@ -12,6 +12,8 @@ import { parseSSEStream } from '@/lib/utils';
 import { Navbar } from '@/components/layout/Navbar';
 import { AudioRecorder } from '@/components/AudioRecorder';
 import { NeuralCanvas } from '@/components/canvas/NeuralCanvas';
+import { useSupabaseCanvas } from '@/hooks/useSupabaseCanvas';
+import { type Node, type Edge } from '@xyflow/react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -165,6 +167,13 @@ export default function InterviewPage() {
   const [sending, setSending] = useState(false);
   const [canvasOpen, setCanvasOpen] = useState(false);
 
+  const { nodes, edges, onNodesChange, onEdgesChange, setNodes } = useSupabaseCanvas(id as string, [
+    { id: '1', type: 'persona', position: { x: 250, y: 50 }, data: { label: 'AI Architect' } },
+    { id: '2', type: 'document', position: { x: 250, y: 250 }, data: { label: 'Project Canvas', content: 'Extracting details...' } }
+  ], [
+    { id: 'e1-2', source: '1', target: '2', animated: true }
+  ]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -225,6 +234,21 @@ export default function InterviewPage() {
           if (parsed?.done) {
             setIsDone(true);
             setInterviewStatus('completed');
+          }
+          if (parsed?.summary) {
+            setNodes((prev) => {
+              const hasSummaryNode = prev.some((n) => n.id === 'summary-node');
+              if (hasSummaryNode) return prev;
+              return [
+                ...prev,
+                {
+                  id: 'summary-node',
+                  type: 'document',
+                  position: { x: 250, y: 450 },
+                  data: { label: 'Interview Summary', content: parsed.summary }
+                }
+              ];
+            });
           }
         }
       );
@@ -376,7 +400,12 @@ export default function InterviewPage() {
               <button className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '4px 8px' }}>Sync to GitHub</button>
             </div>
             <div style={{ flex: 1 }}>
-              <NeuralCanvas nodes={[]} edges={[]} />
+              <NeuralCanvas 
+                nodes={nodes} 
+                edges={edges} 
+                onNodesChange={onNodesChange} 
+                onEdgesChange={onEdgesChange} 
+              />
             </div>
           </div>
         )}

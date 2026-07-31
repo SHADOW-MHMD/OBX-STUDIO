@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { Loader2, Globe, FileText, Lock } from 'lucide-react';
 import { NeuralCanvas } from '@/components/canvas/NeuralCanvas';
 
+export const runtime = 'edge';
+
 export default function SharedInterviewPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;

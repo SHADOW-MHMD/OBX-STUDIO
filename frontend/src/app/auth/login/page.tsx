@@ -1,23 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Cpu, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { Cpu, GitBranch } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
-  const router = useRouter();
 
   const supabase = createClient();
 
   const handleGitHub = async () => {
+    setLoading(true);
     setError(null);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "github",
@@ -25,31 +20,8 @@ export default function LoginPage() {
         redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
-    if (error) setError(error.message);
-  };
-
-  const handleEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: `${window.location.origin}/dashboard` },
-        });
-        if (error) throw error;
-        setSent(true);
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        router.push("/dashboard");
-      }
-    } catch (err: any) {
-      setError(err.message ?? "Something went wrong");
-    } finally {
+    if (error) {
+      setError(error.message);
       setLoading(false);
     }
   };
@@ -103,159 +75,54 @@ export default function LoginPage() {
             background: "#0a0a0a",
             border: "1px solid #1a1a1a",
             borderRadius: 12,
-            padding: "2rem",
+            padding: "2.5rem 2rem",
+            textAlign: "center",
           }}
         >
           <h1
             style={{
-              fontSize: "1.1rem",
+              fontSize: "1.25rem",
               fontWeight: 600,
-              marginBottom: "0.375rem",
+              marginBottom: "0.5rem",
               color: "#fff",
             }}
           >
-            {mode === "signin" ? "Welcome back" : "Create your account"}
+            Welcome to OBX-STUDIO
           </h1>
-          <p style={{ fontSize: "0.85rem", color: "#555", marginBottom: "1.75rem" }}>
-            {mode === "signin"
-              ? "Sign in to continue building."
-              : "Free forever. No credit card needed."}
+          <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: "2rem", lineHeight: 1.5 }}>
+            Authenticate with GitHub to access your Neural Canvas and deploy your startup ideas.
           </p>
 
-          {sent ? (
+          <button
+            onClick={handleGitHub}
+            disabled={loading}
+            className="btn btn-secondary"
+            style={{ width: "100%", justifyContent: "center", padding: "0.75rem", fontSize: "0.95rem" }}
+          >
+            {loading ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" className="css-i6dzq1"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+            )}
+            Continue with GitHub
+          </button>
+
+          {error && (
             <div
               style={{
-                background: "rgba(34,197,94,0.08)",
-                border: "1px solid rgba(34,197,94,0.2)",
-                borderRadius: 8,
-                padding: "1rem",
-                color: "#22c55e",
-                fontSize: "0.875rem",
-                textAlign: "center",
+                marginTop: "1.25rem",
+                background: "rgba(255,68,68,0.08)",
+                border: "1px solid rgba(255,68,68,0.2)",
+                borderRadius: 6,
+                padding: "0.625rem 0.75rem",
+                fontSize: "0.8rem",
+                color: "#ff6666",
               }}
             >
-              Check your email for a confirmation link ✓
+              {error}
             </div>
-          ) : (
-            <>
-              {/* OAuth buttons */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
-                <button
-                  onClick={handleGitHub}
-                  className="btn btn-secondary"
-                  style={{ width: "100%", justifyContent: "center", padding: "0.625rem" }}
-                >
-                  <GitBranch size={16} />
-                  Continue with GitHub
-                </button>
-              </div>
-
-              {/* Divider */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.75rem",
-                  margin: "1.25rem 0",
-                }}
-              >
-                <div style={{ flex: 1, height: 1, background: "#1a1a1a" }} />
-                <span style={{ fontSize: "0.75rem", color: "#444" }}>or</span>
-                <div style={{ flex: 1, height: 1, background: "#1a1a1a" }} />
-              </div>
-
-              {/* Email form */}
-              <form onSubmit={handleEmail} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                <div>
-                  <label
-                    htmlFor="email"
-                    style={{ fontSize: "0.8rem", color: "#666", display: "block", marginBottom: "0.4rem" }}
-                  >
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    className="input"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    required
-                    autoComplete="email"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="password"
-                    style={{ fontSize: "0.8rem", color: "#666", display: "block", marginBottom: "0.4rem" }}
-                  >
-                    Password
-                  </label>
-                  <input
-                    id="password"
-                    type="password"
-                    className="input"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    minLength={8}
-                    autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                  />
-                </div>
-
-                {error && (
-                  <div
-                    style={{
-                      background: "rgba(255,68,68,0.08)",
-                      border: "1px solid rgba(255,68,68,0.2)",
-                      borderRadius: 6,
-                      padding: "0.625rem 0.75rem",
-                      fontSize: "0.8rem",
-                      color: "#ff6666",
-                    }}
-                  >
-                    {error}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={loading}
-                  style={{ width: "100%", justifyContent: "center", padding: "0.625rem", marginTop: "0.25rem" }}
-                >
-                  {loading
-                    ? "..."
-                    : mode === "signin"
-                    ? "Sign in"
-                    : "Create account"}
-                </button>
-              </form>
-            </>
           )}
         </div>
-
-        {/* Toggle mode */}
-        {!sent && (
-          <p style={{ textAlign: "center", marginTop: "1.25rem", fontSize: "0.85rem", color: "#555" }}>
-            {mode === "signin" ? "Don't have an account? " : "Already have an account? "}
-            <button
-              onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(null); }}
-              style={{
-                background: "none",
-                border: "none",
-                color: "#fff",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                fontSize: "inherit",
-                padding: 0,
-              }}
-            >
-              {mode === "signin" ? "Sign up" : "Sign in"}
-            </button>
-          </p>
-        )}
       </div>
     </main>
   );

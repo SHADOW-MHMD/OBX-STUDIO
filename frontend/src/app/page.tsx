@@ -39,7 +39,7 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { n: "01", title: "Sign in", desc: "GitHub, Google, or email. Takes 10 seconds." },
+  { n: "01", title: "Sign in", desc: "Sign in with your GitHub account. Takes 1 second." },
   { n: "02", title: "Start an interview", desc: "Tell the AI you have an idea. It takes it from there." },
   { n: "03", title: "Answer the questions", desc: "Type or pick from options. The AI adapts to your answers." },
   { n: "04", title: "Get your spec", desc: "Pick your output format. Download. Start building." },
