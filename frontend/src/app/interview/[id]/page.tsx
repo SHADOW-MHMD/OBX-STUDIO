@@ -65,7 +65,9 @@ function AssistantBubble({
   isHeavyTurn: boolean;
 }) {
   const p = msg.parsed;
-  const question = p?.question ?? msg.content;
+  // Fall back to msg.content only if it doesn't look like raw JSON being streamed
+  const isRawJsonStream = msg.streaming && (msg.content.trim().startsWith('{') || msg.content.trim().startsWith('```'));
+  const question = p?.question ?? (isRawJsonStream ? '' : msg.content);
   const options = p?.options ?? [];
   const isStreaming = msg.streaming;
 
@@ -74,7 +76,7 @@ function AssistantBubble({
     .map((s) => s.trim())
     .filter(Boolean);
 
-  if (isStreaming && !msg.content) {
+  if (isStreaming && !question) {
     if (isHeavyTurn) {
       return (
         <div style={{ marginBottom: '2rem' }} className="animate-fadein">

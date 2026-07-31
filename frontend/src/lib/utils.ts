@@ -75,7 +75,36 @@ export function parseInterviewResponse(text: string): {
     if (match) {
       try { return JSON.parse(match[1]); } catch {}
     }
-    return null;
+
+    // Fallback for partial streaming JSON
+    const partial: any = {};
+    
+    // Extract "question": "..."
+    const questionMatch = text.match(/"question"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)/);
+    if (questionMatch) {
+      // Decode escaped quotes
+      partial.question = questionMatch[1].replace(/\\"/g, '"');
+    }
+
+    // Extract options if possible (rough regex for an array of strings in progress)
+    const optionsMatch = text.match(/"options"\s*:\s*\[(.*?)\]/s);
+    if (optionsMatch) {
+      const opts = optionsMatch[1].match(/"([^"\\]*(?:\\.[^"\\]*)*)"/g);
+      if (opts) {
+        partial.options = opts.map(o => o.slice(1, -1).replace(/\\"/g, '"'));
+      }
+    } else {
+      // if options array is currently streaming and not closed yet
+      const optionsOpenMatch = text.match(/"options"\s*:\s*\[(.*)/s);
+      if (optionsOpenMatch) {
+        const opts = optionsOpenMatch[1].match(/"([^"\\]*(?:\\.[^"\\]*)*)"/g);
+        if (opts) {
+          partial.options = opts.map(o => o.slice(1, -1).replace(/\\"/g, '"'));
+        }
+      }
+    }
+
+    return Object.keys(partial).length > 0 ? partial : null;
   }
 }
 
