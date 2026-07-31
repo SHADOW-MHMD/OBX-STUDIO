@@ -16,7 +16,9 @@ interviewRoutes.post("/", requireAuth, async (c) => {
   const userId = c.get("userId" as never) as string;
   const dbUser = c.get("dbUser" as never) as DbUser;
 
-  if (dbUser.interviews_used_today >= dbUser.interviews_limit) {
+  const hasByok = !!c.req.header("X-OpenRouter-Key");
+
+  if (!hasByok && dbUser.interviews_used_today >= dbUser.interviews_limit) {
     return c.json(
       {
         error: "Daily limit reached",

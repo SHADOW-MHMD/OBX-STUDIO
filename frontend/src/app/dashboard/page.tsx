@@ -431,6 +431,7 @@ export default function DashboardPage() {
   const [loadingInterviews, setLoadingInterviews] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [hasByok, setHasByok] = useState(false);
 
   // Auth guard
   useEffect(() => {
@@ -438,6 +439,12 @@ export default function DashboardPage() {
       router.replace("/auth/login");
     }
   }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setHasByok(!!localStorage.getItem("openrouter_api_key"));
+    }
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -540,6 +547,7 @@ export default function DashboardPage() {
                     if (key.trim() === "") {
                       localStorage.removeItem("openrouter_api_key");
                       localStorage.removeItem("openrouter_model");
+                      setHasByok(false);
                       alert("BYOK settings removed. App will now use default backend limits.");
                     } else {
                       localStorage.setItem("openrouter_api_key", key.trim());
@@ -550,6 +558,7 @@ export default function DashboardPage() {
                         localStorage.setItem("openrouter_model", model.trim());
                       }
                       
+                      setHasByok(true);
                       alert("BYOK settings saved! They will be used for all future LLM requests.");
                     }
                   }
@@ -597,14 +606,16 @@ export default function DashboardPage() {
                 />
                 <StatCard
                   label="Used Today"
-                  value={`${stats?.interviews_used_today ?? 0}/${stats?.interviews_limit ?? 3}`}
+                  value={hasByok ? "Unlimited" : `${stats?.interviews_used_today ?? 0}/${stats?.interviews_limit ?? 3}`}
                   sub={
-                    (stats?.interviews_used_today ?? 0) >= (stats?.interviews_limit ?? 3)
+                    hasByok
+                      ? "BYOK active"
+                      : (stats?.interviews_used_today ?? 0) >= (stats?.interviews_limit ?? 3)
                       ? "Limit reached"
                       : `${(stats?.interviews_limit ?? 3) - (stats?.interviews_used_today ?? 0)} remaining`
                   }
                   highlight={
-                    (stats?.interviews_used_today ?? 0) >= (stats?.interviews_limit ?? 3)
+                    !hasByok && (stats?.interviews_used_today ?? 0) >= (stats?.interviews_limit ?? 3)
                   }
                 />
                 <StatCard
