@@ -8,7 +8,7 @@ import { Key, Loader2, ArrowRight } from "lucide-react";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user, isLoading, fetchUser } = useAuthStore();
+  const { user, isLoading, setUser } = useAuthStore();
   const [key, setKey] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +28,8 @@ export default function OnboardingPage() {
     setError(null);
     try {
       await api.user.updateSettings({ openrouter_key: key.trim() });
-      await fetchUser(); // Reload user state to get has_key = true
+      const updatedUser = await api.auth.me();
+      setUser(updatedUser);
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Failed to save API key. Please try again.");

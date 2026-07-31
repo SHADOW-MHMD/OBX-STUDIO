@@ -9,7 +9,7 @@ import { Settings, Key, Cpu, Loader2, Check, User } from "lucide-react";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, isLoading, fetchUser } = useAuthStore();
+  const { user, isLoading, setUser } = useAuthStore();
   
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("nvidia/nemotron-3-ultra-550b-a55b:free");
@@ -36,7 +36,8 @@ export default function SettingsPage() {
     setSavingKey(true);
     try {
       await api.user.updateSettings({ openrouter_key: apiKey.trim() });
-      await fetchUser();
+      const updatedUser = await api.auth.me();
+      setUser(updatedUser);
       setApiKey("");
       alert("API Key updated successfully!");
     } catch (err: any) {
@@ -52,7 +53,8 @@ export default function SettingsPage() {
     setSavingModel(true);
     try {
       await api.user.updateSettings({ openrouter_model: model.trim() });
-      await fetchUser();
+      const updatedUser = await api.auth.me();
+      setUser(updatedUser);
       alert("Model preference updated successfully!");
     } catch (err: any) {
       alert(err.message || "Failed to save model.");
@@ -66,7 +68,8 @@ export default function SettingsPage() {
     setSavingProfile(true);
     try {
       await api.auth.updateProfile({ display_name: displayName.trim() });
-      await fetchUser();
+      const updatedUser = await api.auth.me();
+      setUser(updatedUser);
       alert("Profile updated successfully!");
     } catch (err: any) {
       alert(err.message || "Failed to update profile.");
