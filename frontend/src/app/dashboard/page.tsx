@@ -431,20 +431,16 @@ export default function DashboardPage() {
   const [loadingInterviews, setLoadingInterviews] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [hasByok, setHasByok] = useState(false);
-
   // Auth guard
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace("/auth/login");
+    if (!authLoading) {
+      if (!user) {
+        router.replace("/auth/login");
+      } else if (!user.has_key) {
+        router.replace("/onboarding");
+      }
     }
   }, [user, authLoading, router]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setHasByok(!!localStorage.getItem("openrouter_api_key"));
-    }
-  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -539,35 +535,6 @@ export default function DashboardPage() {
             </div>
 
             <div style={{ display: "flex", gap: "0.75rem", flexShrink: 0 }}>
-              <button
-                onClick={() => {
-                  const currentKey = localStorage.getItem("openrouter_api_key") || "";
-                  const key = window.prompt("Enter your OpenRouter API Key for BYOK (leave blank to remove):", currentKey);
-                  if (key !== null) {
-                    if (key.trim() === "") {
-                      localStorage.removeItem("openrouter_api_key");
-                      localStorage.removeItem("openrouter_model");
-                      setHasByok(false);
-                      alert("BYOK settings removed. App will now use default backend limits.");
-                    } else {
-                      localStorage.setItem("openrouter_api_key", key.trim());
-                      
-                      const currentModel = localStorage.getItem("openrouter_model") || "nvidia/nemotron-3-ultra-550b-a55b:free";
-                      const model = window.prompt("Enter the OpenRouter Model ID you want to use:", currentModel);
-                      if (model && model.trim() !== "") {
-                        localStorage.setItem("openrouter_model", model.trim());
-                      }
-                      
-                      setHasByok(true);
-                      alert("BYOK settings saved! They will be used for all future LLM requests.");
-                    }
-                  }
-                }}
-                className="btn btn-ghost"
-                style={{ gap: "0.375rem", fontSize: "0.875rem" }}
-              >
-                BYOK Settings
-              </button>
               <Link
                 href="/interview/new"
                 className="btn btn-primary"
@@ -605,18 +572,9 @@ export default function DashboardPage() {
                   sub="All time"
                 />
                 <StatCard
-                  label="Used Today"
-                  value={hasByok ? "Unlimited" : `${stats?.interviews_used_today ?? 0}/${stats?.interviews_limit ?? 3}`}
-                  sub={
-                    hasByok
-                      ? "BYOK active"
-                      : (stats?.interviews_used_today ?? 0) >= (stats?.interviews_limit ?? 3)
-                      ? "Limit reached"
-                      : `${(stats?.interviews_limit ?? 3) - (stats?.interviews_used_today ?? 0)} remaining`
-                  }
-                  highlight={
-                    !hasByok && (stats?.interviews_used_today ?? 0) >= (stats?.interviews_limit ?? 3)
-                  }
+                  label="Questions Answered"
+                  value={stats?.total_questions_answered ?? 0}
+                  sub="Across all interviews"
                 />
                 <StatCard
                   label="Streak"

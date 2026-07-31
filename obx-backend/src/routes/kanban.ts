@@ -84,8 +84,18 @@ kanbanRoutes.post("/:interviewId/autofill", requireAuth, async (c) => {
   
   let jsonString = "[]";
   try {
-    const openRouterKey = c.req.header("X-OpenRouter-Key") ?? c.env.OPENROUTER_API_KEY;
-    const openRouterModel = c.req.header("X-OpenRouter-Model") || undefined;
+    const dbUserRow = await c.env.DB.prepare(
+      `SELECT openrouter_key, openrouter_model FROM users WHERE id = ?`
+    ).bind(userId).first<{ openrouter_key?: string, openrouter_model?: string }>();
+
+    if (!dbUserRow?.openrouter_key) {
+      return c.json({ error: "API key not configured" }, 403);
+    }
+
+    const { decryptKey } = await import("../lib/crypto");
+    const openRouterKey = await decryptKey(dbUserRow.openrouter_key, c.env.ENCRYPTION_KEY);
+    const openRouterModel = dbUserRow.openrouter_model || undefined;
+
     jsonString = await chatCompletion(
       [
         { role: "system", content: "You are a helpful assistant that strictly outputs JSON." },

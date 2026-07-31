@@ -23,6 +23,8 @@ authRoutes.get("/me", requireAuth, async (c) => {
     total_interviews: dbUser.total_interviews,
     total_questions_answered: dbUser.total_questions_answered,
     is_admin: dbUser.is_admin,
+    has_key: !!(dbUser as any).openrouter_key,
+    openrouter_model: (dbUser as any).openrouter_model || "nvidia/nemotron-3-ultra-550b-a55b:free",
   });
 });
 

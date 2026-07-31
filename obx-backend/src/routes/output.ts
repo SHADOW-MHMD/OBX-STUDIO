@@ -53,8 +53,18 @@ outputRoutes.post("/:interviewId", requireAuth, async (c) => {
 
   let content: string;
   try {
-    const openRouterKey = c.req.header("X-OpenRouter-Key") ?? c.env.OPENROUTER_API_KEY;
-    const openRouterModel = c.req.header("X-OpenRouter-Model") || undefined;
+    const dbUserRow = await c.env.DB.prepare(
+      `SELECT openrouter_key, openrouter_model FROM users WHERE id = ?`
+    ).bind(userId).first<{ openrouter_key?: string, openrouter_model?: string }>();
+
+    if (!dbUserRow?.openrouter_key) {
+      return c.json({ error: "API key not configured" }, 403);
+    }
+
+    const { decryptKey } = await import("../lib/crypto");
+    const openRouterKey = await decryptKey(dbUserRow.openrouter_key, c.env.ENCRYPTION_KEY);
+    const openRouterModel = dbUserRow.openrouter_model || undefined;
+
     content = await chatCompletion(
       [
         ...messages.results as any,
@@ -89,8 +99,16 @@ outputRoutes.post("/:interviewId", requireAuth, async (c) => {
       if ((existing?.count ?? 0) > 0) return;
 
       try {
-        const openRouterKey = c.req.header("X-OpenRouter-Key") ?? c.env.OPENROUTER_API_KEY;
-        const openRouterModel = c.req.header("X-OpenRouter-Model") || undefined;
+        const dbUserRow = await c.env.DB.prepare(
+          `SELECT openrouter_key, openrouter_model FROM users WHERE id = ?`
+        ).bind(userId).first<{ openrouter_key?: string, openrouter_model?: string }>();
+
+        if (!dbUserRow?.openrouter_key) return;
+
+        const { decryptKey } = await import("../lib/crypto");
+        const openRouterKey = await decryptKey(dbUserRow.openrouter_key, c.env.ENCRYPTION_KEY);
+        const openRouterModel = dbUserRow.openrouter_model || undefined;
+
         const tasksRaw = await chatCompletion(
           [
             { role: "user", content: `Here is the app spec:\n\n${content}\n\n${TASK_BREAKDOWN_PROMPT}` },

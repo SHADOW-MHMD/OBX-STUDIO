@@ -102,49 +102,80 @@ export function Navbar() {
       </nav>
 
       {/* User section */}
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-        {/* Token usage pill */}
+      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", position: "relative" }} className="group">
+        
+        {/* Avatar trigger */}
         <div
           style={{
-            background: "#111",
-            border: "1px solid #222",
-            borderRadius: 999,
-            padding: "0.25rem 0.75rem",
-            fontSize: "0.75rem",
-            color: user.interviews_used_today >= user.interviews_limit ? "#ff4444" : "#888",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
-          {user.interviews_used_today}/{user.interviews_limit} today
-        </div>
-
-        {/* Avatar */}
-        <div
-          style={{
-            width: 28,
-            height: 28,
+            width: 32,
+            height: 32,
             borderRadius: "50%",
             background: "#1a1a1a",
             border: "1px solid #333",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: "0.75rem",
+            fontSize: "0.85rem",
             color: "#888",
+            cursor: "pointer",
           }}
         >
           {(user.display_name ?? user.email)[0].toUpperCase()}
         </div>
 
-        {/* Sign out */}
-        <button
-          onClick={handleSignOut}
-          className="btn btn-ghost"
-          style={{ padding: "0.375rem", color: "#555" }}
-          title="Sign out"
+        {/* Dropdown Menu (shown on group hover) */}
+        <div
+          className="absolute right-0 top-full mt-2 w-48 rounded-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50"
+          style={{
+            background: "#111",
+            border: "1px solid #222",
+          }}
         >
-          <LogOut size={15} />
-        </button>
+          <div style={{ padding: "0.5rem 1rem", borderBottom: "1px solid #222", marginBottom: "0.25rem" }}>
+            <p style={{ color: "#fff", fontSize: "0.85rem", margin: 0, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {user.display_name || user.email}
+            </p>
+          </div>
+          <Link
+            href="/settings"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              padding: "0.5rem 1rem",
+              color: "#aaa",
+              textDecoration: "none",
+              fontSize: "0.85rem",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#aaa")}
+          >
+            <Settings size={14} />
+            Settings
+          </Link>
+          <button
+            onClick={handleSignOut}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              padding: "0.5rem 1rem",
+              color: "#ff4444",
+              textDecoration: "none",
+              fontSize: "0.85rem",
+              background: "transparent",
+              border: "none",
+              width: "100%",
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#ff44441a")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            <LogOut size={14} />
+            Sign out
+          </button>
+        </div>
       </div>
     </header>
   );

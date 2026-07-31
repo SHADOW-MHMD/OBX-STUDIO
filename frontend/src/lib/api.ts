@@ -19,15 +19,6 @@ async function apiFetch<T>(
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  // BYOK logic
-  if (typeof window !== "undefined") {
-    const byok = localStorage.getItem("openrouter_api_key");
-    if (byok) headers["X-OpenRouter-Key"] = byok;
-    
-    const byom = localStorage.getItem("openrouter_model");
-    if (byom) headers["X-OpenRouter-Model"] = byom;
-  }
-
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -48,6 +39,8 @@ export const api = {
 
   user: {
     stats: () => apiFetch<UserStats>("/user/stats"),
+    updateSettings: (body: { openrouter_key?: string; openrouter_model?: string }) =>
+      apiFetch("/user/settings", { method: "PATCH", body: JSON.stringify(body) }),
   },
 
   interview: {
@@ -71,13 +64,6 @@ export const api = {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
-      if (typeof window !== "undefined") {
-        const byok = localStorage.getItem("openrouter_api_key");
-        if (byok) headers["X-OpenRouter-Key"] = byok;
-        
-        const byom = localStorage.getItem("openrouter_model");
-        if (byom) headers["X-OpenRouter-Model"] = byom;
-      }
       return fetch(`${BASE}/interview/${id}/message`, {
         method: "POST",
         headers,
@@ -137,6 +123,8 @@ export interface UserProfile {
   total_interviews: number;
   total_questions_answered: number;
   is_admin: boolean;
+  has_key: boolean;
+  openrouter_model: string;
 }
 
 export interface UserStats {

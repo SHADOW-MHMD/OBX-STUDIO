@@ -14,18 +14,12 @@ export const interviewRoutes = new Hono<{ Bindings: Env }>();
  */
 interviewRoutes.post("/", requireAuth, async (c) => {
   const userId = c.get("userId" as never) as string;
-  const dbUser = c.get("dbUser" as never) as DbUser;
+  const dbUser = c.get("dbUser" as never) as DbUser & { openrouter_key?: string };
 
-  const hasByok = !!c.req.header("X-OpenRouter-Key");
-
-  if (!hasByok && dbUser.interviews_used_today >= dbUser.interviews_limit) {
+  if (!dbUser.openrouter_key) {
     return c.json(
-      {
-        error: "Daily limit reached",
-        used: dbUser.interviews_used_today,
-        limit: dbUser.interviews_limit,
-      },
-      429
+      { error: "No OpenRouter API key found. Please set it in Settings." },
+      403
     );
   }
 
@@ -171,8 +165,18 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
   // Stream AI response
   let stream: ReadableStream;
   try {
-    const openRouterKey = c.req.header("X-OpenRouter-Key") ?? c.env.OPENROUTER_API_KEY;
-    const openRouterModel = c.req.header("X-OpenRouter-Model") || undefined;
+    const dbUserRow = await c.env.DB.prepare(
+      `SELECT openrouter_key, openrouter_model FROM users WHERE id = ?`
+    ).bind((interview as any).user_id).first<{ openrouter_key?: string, openrouter_model?: string }>();
+
+    if (!dbUserRow?.openrouter_key) {
+      return c.json({ error: "API key not configured" }, 403);
+    }
+
+    const { decryptKey } = await import("../lib/crypto");
+    const openRouterKey = await decryptKey(dbUserRow.openrouter_key, c.env.ENCRYPTION_KEY);
+    const openRouterModel = dbUserRow.openrouter_model || undefined;
+
     stream = await streamChatCompletion(
       allMessages.results as any,
       openRouterKey,
