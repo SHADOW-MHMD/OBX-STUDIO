@@ -1,6 +1,6 @@
-const API_BASE = "https://integrate.api.nvidia.com/v1";
-// ponytail: using nvidia nim free tier for llama 3.3 70b
-const MODEL = "meta/llama-3.3-70b-instruct";
+const API_BASE = "https://openrouter.ai/api/v1";
+// ponytail: using openrouter free tier for llama 3.3 70b
+const MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
 export interface ChatMessage {
   role: "system" | "assistant" | "user";
