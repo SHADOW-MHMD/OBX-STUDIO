@@ -87,7 +87,7 @@ export function parseInterviewResponse(text: string): {
     }
 
     // Extract options if possible (rough regex for an array of strings in progress)
-    const optionsMatch = text.match(/"options"\s*:\s*\[(.*?)\]/s);
+    const optionsMatch = text.match(/"options"\s*:\s*\[([\s\S]*?)\]/);
     if (optionsMatch) {
       const opts = optionsMatch[1].match(/"([^"\\]*(?:\\.[^"\\]*)*)"/g);
       if (opts) {
@@ -95,7 +95,7 @@ export function parseInterviewResponse(text: string): {
       }
     } else {
       // if options array is currently streaming and not closed yet
-      const optionsOpenMatch = text.match(/"options"\s*:\s*\[(.*)/s);
+      const optionsOpenMatch = text.match(/"options"\s*:\s*\[([\s\S]*)/);
       if (optionsOpenMatch) {
         const opts = optionsOpenMatch[1].match(/"([^"\\]*(?:\\.[^"\\]*)*)"/g);
         if (opts) {
