@@ -202,13 +202,14 @@ export default function LandingPage() {
               <ArrowRight size={16} />
             </Link>
             <a
-              href="https://github.com/obx-studio"
+              href="https://github.com/SHADOW-MHMD/OBX-STUDIO"
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noreferrer"
               className="btn btn-secondary"
-              style={{ padding: "0.75rem 1.5rem", fontSize: "0.95rem" }}
+              style={{ padding: "0.75rem 1.5rem", fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.5rem" }}
             >
-              View on GitHub
+              <Github size={18} />
+              Star on GitHub
             </a>
           </div>
         </div>
