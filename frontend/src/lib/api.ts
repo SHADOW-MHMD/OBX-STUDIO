@@ -32,7 +32,7 @@ async function apiFetch<T>(
 // ---- Auth ----
 export const api = {
   auth: {
-    me: () => apiFetch<UserProfile>("/auth/me"),
+    me: () => apiFetch<UserProfile>(`/auth/me?_t=${Date.now()}`),
     updateProfile: (body: { display_name?: string; avatar_url?: string }) =>
       apiFetch("/auth/profile", { method: "PATCH", body: JSON.stringify(body) }),
   },
