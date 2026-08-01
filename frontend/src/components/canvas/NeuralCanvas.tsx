@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   ReactFlow,
-  Background,
   Controls,
   MiniMap,
   Node,
@@ -37,7 +36,7 @@ export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
   onEdgesChange,
 }) => {
   return (
-    <div className="w-full h-screen bg-[#050505]">
+    <div className="w-full h-full bg-[#050505]">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -53,7 +52,6 @@ export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
           className: 'hover:stroke-blue-400 transition-colors',
         }}
       >
-        <Background color="#222" gap={16} />
         <Controls className="!bg-[#111] !border-[#333] !fill-gray-300" />
         <MiniMap 
           nodeColor={(node) => {

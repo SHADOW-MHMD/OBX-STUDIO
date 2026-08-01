@@ -308,7 +308,7 @@ export default function InterviewPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#000', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '100vh', background: '#000', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <Navbar />
 
       <div style={{ display: 'flex', flex: 1, paddingTop: 56, height: '100vh', overflow: 'hidden' }}>
