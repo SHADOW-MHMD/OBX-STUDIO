@@ -35,9 +35,21 @@ ${isHeavyTurn ? "It's time to ask a slightly deeper or tougher question based on
 Provide your response in JSON format exactly like this:
 {
   "question": "Your next question or response here...",
-  "options": ["Option A", "Option B", "Option C"]
+  "options": ["Option A", "Option B", "Option C"],
+  "canvas_updates": [
+    {
+      "action": "add_node",
+      "node": {
+        "id": "unique-id",
+        "type": "document",
+        "position": { "x": 250, "y": 250 },
+        "data": { "label": "Node Title", "content": "Optional description" }
+      }
+    }
+  ]
 }
-The options should be 2-4 suggested quick replies the user could pick, or they can type their own answer.
+The "options" should be 2-4 suggested quick replies the user could pick, or they can type their own answer.
+You can optionally provide "canvas_updates" (array) to visually map out ideas, features, or architecture on the user's Neural Canvas as you discuss them. Use x/y coordinates to arrange them logically. Supported node types are "document", "task", and "persona". You can also use "add_edge" with {"id": "e1-2", "source": "node-1", "target": "node-2"}.
 
 If you feel you fully understand the idea and there is nothing left to discuss, you can set "done": true in the JSON and provide a 5-word "summary" of the idea. But you should generally keep the conversation going until the user explicitly says they are done or you have a very robust understanding.
 `;

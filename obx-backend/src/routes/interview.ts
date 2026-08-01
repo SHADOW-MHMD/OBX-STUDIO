@@ -115,7 +115,7 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
     return c.json({ error: "Interview already completed" }, 400);
   }
 
-  const { content } = await c.req.json<{ content: string }>();
+  const { content, canvasState } = await c.req.json<{ content: string, canvasState?: any }>();
   if (!content?.trim()) return c.json({ error: "Empty message" }, 400);
 
   // Save user message
@@ -149,6 +149,18 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
   const systemMessageIndex = allMessages.results.findIndex(m => m.role === "system");
   if (systemMessageIndex !== -1) {
     allMessages.results[systemMessageIndex].content = getInterviewSystemPrompt(personaId, isHeavyTurn);
+  }
+
+  // Inject the canvasState into the very last user message in memory (so the AI can read it)
+  if (canvasState && allMessages.results.length > 0) {
+    const lastMsg = allMessages.results[allMessages.results.length - 1];
+    if (lastMsg.role === 'user') {
+      const strippedCanvas = {
+        nodes: canvasState.nodes?.map((n: any) => ({ id: n.id, type: n.type, data: n.data })),
+        edges: canvasState.edges?.map((e: any) => ({ source: e.source, target: e.target }))
+      };
+      lastMsg.content = `${lastMsg.content}\n\n[Current Neural Canvas State:\n${JSON.stringify(strippedCanvas)}]`;
+    }
   }
 
   // Stream AI response

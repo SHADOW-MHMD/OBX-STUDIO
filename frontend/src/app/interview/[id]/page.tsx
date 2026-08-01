@@ -217,7 +217,7 @@ export default function InterviewPage() {
     setMessages((prev) => [...prev, streamMsg]);
 
     try {
-      const response = await api.interview.sendMessage(id, content);
+      const response = await api.interview.sendMessage(id as string, content, { nodes, edges });
       if (!response.ok) throw new Error("Failed to send message");
 
       let accumulated = '';
@@ -248,6 +248,21 @@ export default function InterviewPage() {
                   data: { label: 'Interview Summary', content: parsed.summary }
                 }
               ];
+            });
+          }
+          if (parsed?.canvas_updates && Array.isArray(parsed.canvas_updates)) {
+            parsed.canvas_updates.forEach((update: any) => {
+              if (update.action === 'add_node' && update.node) {
+                setNodes((prev) => {
+                  if (prev.some((n) => n.id === update.node.id)) return prev;
+                  return [...prev, update.node];
+                });
+              } else if (update.action === 'add_edge' && update.edge) {
+                setEdges((prev) => {
+                  if (prev.some((e) => e.id === update.edge.id)) return prev;
+                  return [...prev, { ...update.edge, animated: true }];
+                });
+              }
             });
           }
         }

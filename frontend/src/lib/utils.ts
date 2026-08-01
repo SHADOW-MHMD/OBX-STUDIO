@@ -66,6 +66,11 @@ export function parseInterviewResponse(text: string): {
   };
   done?: boolean;
   summary?: string;
+  canvas_updates?: Array<{
+    action: "add_node" | "add_edge";
+    node?: any;
+    edge?: any;
+  }>;
 } | null {
   try {
     return JSON.parse(text);
