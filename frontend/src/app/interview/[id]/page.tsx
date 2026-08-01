@@ -172,7 +172,7 @@ export default function InterviewPage() {
   const [sending, setSending] = useState(false);
   const [canvasOpen, setCanvasOpen] = useState(false);
 
-  const { nodes, edges, onNodesChange, onEdgesChange, setNodes } = useSupabaseCanvas(id as string, [
+  const { nodes, edges, onNodesChange, onEdgesChange, setNodes, setEdges } = useSupabaseCanvas(id as string, [
     { id: '1', type: 'persona', position: { x: 250, y: 50 }, data: { label: 'AI Architect' } },
     { id: '2', type: 'document', position: { x: 250, y: 250 }, data: { label: 'Project Canvas', content: 'Extracting details...' } }
   ], [
