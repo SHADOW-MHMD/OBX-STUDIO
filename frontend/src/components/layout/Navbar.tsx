@@ -20,7 +20,6 @@ export function Navbar() {
   if (!user) return null;
 
   const nav = [
-    { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     ...(user.is_admin ? [{ href: "/admin", icon: Shield, label: "Admin" }] : []),
   ];
 

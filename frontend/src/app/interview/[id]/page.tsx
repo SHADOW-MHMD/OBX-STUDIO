@@ -410,9 +410,8 @@ export default function InterviewPage() {
         {/* Neural Canvas Sidebar */}
         {canvasOpen && (
           <div style={{ width: '50%', minWidth: 600, height: '100%', background: '#050505', display: 'flex', flexDirection: 'column', animation: 'fadein 0.2s ease-out' }}>
-            <div style={{ padding: '1rem', borderBottom: '1px solid #111', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ color: '#fff', fontWeight: 600, fontSize: '1rem' }}>Neural Canvas</h2>
-              <button className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '4px 8px' }}>Sync to GitHub</button>
+            <div style={{ padding: '1rem', borderBottom: '1px solid #222', background: '#0a0a0a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 600 }}>Neural Canvas</h3>
             </div>
             <div style={{ flex: 1 }}>
               <NeuralCanvas 

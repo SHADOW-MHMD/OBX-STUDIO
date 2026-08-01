@@ -7,7 +7,7 @@ interface TaskNodeProps {
 
 export const TaskNode: React.FC<TaskNodeProps> = ({ data }) => {
   return (
-    <div className="bg-[#1a1c23] border border-[#444] p-4 rounded-xl shadow-lg min-w-[200px] transition-all duration-300 hover:shadow-[0_0_15px_rgba(100,255,150,0.2)] hover:border-[#64ff96]">
+    <div className="bg-[#1a1c23]/90 backdrop-blur-md border border-[#444] p-4 rounded-xl shadow-2xl min-w-[200px] transition-all duration-300 hover:scale-105 hover:-translate-y-1 hover:shadow-[0_0_25px_rgba(100,255,150,0.3)] hover:border-[#64ff96]">
       <Handle type="target" position={Position.Top} className="!bg-[#64ff96]" />
       <div className="flex flex-col gap-2">
         <div className="text-gray-100 font-semibold text-sm">{data.label}</div>
