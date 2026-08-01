@@ -23,6 +23,11 @@ interface ParsedAssistantMessage {
   context?: string;
   done?: boolean;
   summary?: string;
+  canvas_updates?: Array<{
+    action: 'add_node' | 'add_edge';
+    node?: any;
+    edge?: any;
+  }>;
   raw: string;
 }
 
