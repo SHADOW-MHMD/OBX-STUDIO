@@ -75,7 +75,7 @@ export const api = {
      * Send a user message and get a streaming SSE response back.
      * Returns a ReadableStream.
      */
-    sendMessage: async (id: string, content: string, canvasState?: { nodes: any[], links?: any[] }): Promise<Response> => {
+    sendMessage: async (id: string, content: string, canvasState?: { nodes: any[], links?: any[], edges?: any[] }): Promise<Response> => {
       const token = await getToken();
       const headers: Record<string, string> = {
         "Content-Type": "application/json",

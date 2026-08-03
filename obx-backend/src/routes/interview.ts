@@ -171,9 +171,18 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
   if (canvasState && allMessages.results.length > 0) {
     const lastMsg = allMessages.results[allMessages.results.length - 1];
     if (lastMsg.role === 'user') {
+      const rawEdges = canvasState.edges ?? canvasState.links ?? [];
       const strippedCanvas = {
-        nodes: canvasState.nodes?.map((n: any) => ({ id: n.id, type: n.type, data: n.data })),
-        edges: canvasState.edges?.map((e: any) => ({ source: e.source, target: e.target }))
+        nodes: canvasState.nodes?.map((n: any) => ({
+          id: n.id,
+          name: n.name || n.label || n.data?.label || n.id,
+          category: n.category ?? n.type ?? 'default',
+        })),
+        edges: rawEdges.map((e: any) => ({
+          source: typeof e.source === 'string' ? e.source : e.source?.id,
+          target: typeof e.target === 'string' ? e.target : e.target?.id,
+          label: e.label,
+        })),
       };
       lastMsg.content = `${lastMsg.content}\n\n[Current Neural Canvas State:\n${JSON.stringify(strippedCanvas)}]`;
     }

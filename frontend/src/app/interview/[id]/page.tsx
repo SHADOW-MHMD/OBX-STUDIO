@@ -284,7 +284,7 @@ export default function InterviewPage() {
     setMessages((prev) => [...prev, streamMsg]);
 
     try {
-      const response = await api.interview.sendMessage(id as string, content, { nodes, links });
+      const response = await api.interview.sendMessage(id as string, content, { nodes, edges: links });
       if (!response.ok) throw new Error('Failed to send message');
 
       let accumulated = '';
@@ -318,16 +318,23 @@ export default function InterviewPage() {
 
             parsed.canvas_updates.forEach((update: any) => {
               if (update.action === 'add_node' && update.node) {
-                if (!newNodes.some((n) => n.id === update.node.id)) {
-                  newNodes.push({
-                    id: update.node.id,
-                    name: update.node.label || update.node.name || 'Unknown',
-                    category: update.node.category ?? update.node.type ?? 'default',
-                  });
+                const n = update.node;
+                const nodeId = n.id;
+                if (nodeId && !newNodes.some((existing) => existing.id === nodeId)) {
+                  // Support both new format (n.name / n.label) and old format (n.data.label)
+                  const nodeName = n.name || n.label || n.data?.label || nodeId;
+                  // Support new category field and old type field
+                  const nodeCategory = n.category ?? (
+                    n.type === 'persona' ? 'persona' :
+                    n.type === 'task' ? 'feature' :
+                    n.type === 'document' ? 'default' : 'default'
+                  );
+                  newNodes.push({ id: nodeId, name: nodeName, category: nodeCategory });
                 }
               } else if (update.action === 'add_edge' && update.edge) {
                 const sid = update.edge.source;
                 const tid = update.edge.target;
+                if (!sid || !tid) return;
                 const alreadyExists = newLinks.some(
                   (l) =>
                     (l.source === sid || (l.source as any)?.id === sid) &&
