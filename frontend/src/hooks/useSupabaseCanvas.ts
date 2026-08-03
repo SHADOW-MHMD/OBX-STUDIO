@@ -1,68 +1,66 @@
-import { useEffect, useCallback } from 'react';
-import { Node, Edge, NodeChange, EdgeChange, applyNodeChanges, applyEdgeChanges, useNodesState, useEdgesState } from '@xyflow/react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import { api } from '@/lib/api';
+import type { Node3D, Link3D } from '@/components/canvas/NeuralCanvas';
 
-export function useSupabaseCanvas(interviewId: string | undefined, initialNodes: Node[], initialEdges: Edge[]) {
-  const [nodes, setNodes] = useNodesState(initialNodes);
-  const [edges, setEdges] = useEdgesState(initialEdges);
+export function useSupabaseCanvas(interviewId: string | undefined, initialNodes: Node3D[], initialLinks: Link3D[]) {
+  const [nodes, setNodes] = useState<Node3D[]>(initialNodes || []);
+  const [links, setLinks] = useState<Link3D[]>(initialLinks || []);
+  
   const supabase = createClient();
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!interviewId) return;
 
-    // Use a single channel for the entire interview
-    const channel = supabase.channel(`canvas-${interviewId}`);
-
-    channel
-      .on('broadcast', { event: 'node-changes' }, (payload) => {
+    // Subscribe to graph changes
+    const channel = supabase.channel(`canvas-${interviewId}`)
+      .on('broadcast', { event: 'graph-update' }, (payload) => {
         if (payload.payload) {
-          setNodes((nds) => applyNodeChanges(payload.payload, nds));
-        }
-      })
-      .on('broadcast', { event: 'edge-changes' }, (payload) => {
-        if (payload.payload) {
-          setEdges((eds) => applyEdgeChanges(payload.payload, eds));
+          if (payload.payload.nodes) setNodes(payload.payload.nodes);
+          if (payload.payload.links) setLinks(payload.payload.links);
         }
       })
       .subscribe();
 
+    channelRef.current = channel;
+
     return () => {
       supabase.removeChannel(channel);
+      channelRef.current = null;
     };
-  }, [interviewId, supabase, setNodes, setEdges]);
+  }, [interviewId, supabase]);
 
-  const onNodesChange = useCallback(
-    (changes: NodeChange[]) => {
-      setNodes((nds) => applyNodeChanges(changes, nds));
-      if (!interviewId) return;
-      supabase.channel(`canvas-${interviewId}`).send({
-        type: 'broadcast',
-        event: 'node-changes',
-        payload: changes,
+  const saveCanvasToDb = useCallback((currentNodes: Node3D[], currentLinks: Link3D[]) => {
+    if (!interviewId) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      // Assuming api.interview.saveCanvas can handle any array format for nodes/edges
+      api.interview.saveCanvas(interviewId, currentNodes as any, currentLinks as any).catch(() => {
+        // Fail silently
       });
-    },
-    [interviewId, supabase, setNodes]
-  );
+    }, 500);
+  }, [interviewId]);
 
-  const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) => {
-      setEdges((eds) => applyEdgeChanges(changes, eds));
-      if (!interviewId) return;
-      supabase.channel(`canvas-${interviewId}`).send({
-        type: 'broadcast',
-        event: 'edge-changes',
-        payload: changes,
-      });
-    },
-    [interviewId, supabase, setEdges]
-  );
+  const updateGraph = useCallback((newNodes: Node3D[], newLinks: Link3D[]) => {
+    setNodes(newNodes);
+    setLinks(newLinks);
+    saveCanvasToDb(newNodes, newLinks);
+    
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'graph-update',
+      payload: { nodes: newNodes, links: newLinks },
+    });
+  }, [saveCanvasToDb]);
 
   return {
     nodes,
-    edges,
+    links,
     setNodes,
-    setEdges,
-    onNodesChange,
-    onEdgesChange,
+    setLinks,
+    updateGraph,
   };
 }

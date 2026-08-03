@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
+import { useToast } from "@/hooks/useToast";
 import { Navbar } from "@/components/layout/Navbar";
 import { Settings, Key, Cpu, Loader2, Check, User } from "lucide-react";
 
@@ -18,8 +19,14 @@ export default function SettingsPage() {
   const [savingKey, setSavingKey] = useState(false);
   const [savingModel, setSavingModel] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
-  
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const [displayName, setDisplayName] = useState("");
+
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!isLoading) {
@@ -35,15 +42,19 @@ export default function SettingsPage() {
   const handleSaveKey = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!apiKey.trim()) return;
+    if (apiKey && !apiKey.startsWith('sk-or-v1-')) {
+      toast('OpenRouter key must start with sk-or-v1-', 'error');
+      return;
+    }
     setSavingKey(true);
     try {
       await api.user.updateSettings({ openrouter_key: apiKey.trim() });
       const updatedUser = await api.auth.me();
       setUser(updatedUser);
       setApiKey("");
-      alert("API Key updated successfully!");
+      toast('API Key updated successfully!', 'success');
     } catch (err: any) {
-      alert(err.message || "Failed to save API key.");
+      toast(err.message || 'Failed to save API key.', 'error');
     } finally {
       setSavingKey(false);
     }
@@ -52,14 +63,19 @@ export default function SettingsPage() {
   const handleSaveModel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!model.trim()) return;
+    const modelPattern = /^[\w-]+\/[\w.-]+(:[\-\w]+)?$/;
+    if (model && !modelPattern.test(model)) {
+      toast('Model ID should be in format: provider/model-name', 'error');
+      return;
+    }
     setSavingModel(true);
     try {
       await api.user.updateSettings({ openrouter_model: model.trim() });
       const updatedUser = await api.auth.me();
       setUser(updatedUser);
-      alert("Model preference updated successfully!");
+      toast('Model preference updated successfully!', 'success');
     } catch (err: any) {
-      alert(err.message || "Failed to save model.");
+      toast(err.message || 'Failed to save model.', 'error');
     } finally {
       setSavingModel(false);
     }
@@ -72,9 +88,9 @@ export default function SettingsPage() {
       await api.auth.updateProfile({ display_name: displayName.trim() });
       const updatedUser = await api.auth.me();
       setUser(updatedUser);
-      alert("Profile updated successfully!");
+      toast('Profile updated successfully!', 'success');
     } catch (err: any) {
-      alert(err.message || "Failed to update profile.");
+      toast(err.message || 'Failed to update profile.', 'error');
     } finally {
       setSavingProfile(false);
     }
@@ -91,7 +107,36 @@ export default function SettingsPage() {
       const updatedUser = await api.auth.me();
       setUser(updatedUser);
     } catch (err: any) {
-      alert(err.message || "Failed to update theme.");
+      toast(err.message || 'Failed to update theme.', 'error');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    try {
+      await api.user.deleteAccount();
+      router.push('/');
+    } catch {
+      toast('Failed to delete account', 'error');
+      setIsDeleting(false);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const res = await api.user.exportData();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'obx-studio-export.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast('Export downloaded!', 'success');
+    } catch {
+      toast('Export failed', 'error');
     }
   };
 
@@ -296,8 +341,52 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {/* Export Data */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0a0a', border: '1px solid #1a1a1a', borderRadius: 12, padding: '1.5rem' }}>
+            <div>
+              <h3 style={{ color: '#fff', fontSize: '1rem', fontWeight: 500, margin: 0, marginBottom: '0.25rem' }}>Export My Data</h3>
+              <p style={{ color: '#666', fontSize: '0.85rem', margin: 0 }}>Download all your interviews and outputs as JSON.</p>
+            </div>
+            <button onClick={handleExport} className="btn btn-secondary" style={{ whiteSpace: 'nowrap' }}>Export Data</button>
+          </div>
+
+          {/* Danger Zone */}
+          <div style={{ border: '1px solid #2a1a1a', borderRadius: 12, padding: '1.5rem', marginTop: '0.5rem' }}>
+            <h3 style={{ color: '#ef4444', margin: 0, marginBottom: '0.5rem', fontSize: '1rem' }}>Danger Zone</h3>
+            <p style={{ color: '#555', fontSize: '0.875rem', margin: 0, marginBottom: '1rem' }}>
+              Permanently delete your account and all data. This cannot be undone.
+            </p>
+            <button onClick={() => setDeleteModalOpen(true)} style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '0.5rem 1rem', borderRadius: 8, cursor: 'pointer', fontSize: '0.875rem' }}>
+              Delete Account
+            </button>
+          </div>
+
         </div>
       </main>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#111', border: '1px solid #222', borderRadius: 16, padding: '2rem', maxWidth: 400, width: '90%' }}>
+            <h3 style={{ color: '#fff', margin: 0, marginBottom: '0.5rem' }}>Delete account?</h3>
+            <p style={{ color: '#888', fontSize: '0.875rem', marginBottom: '1.5rem' }}>Type DELETE to confirm. This will permanently remove all your data.</p>
+            <input
+              value={deleteConfirm}
+              onChange={e => setDeleteConfirm(e.target.value)}
+              placeholder="Type DELETE"
+              style={{ width: '100%', padding: '0.75rem', background: '#0a0a0a', border: '1px solid #333', borderRadius: 8, color: '#fff', marginBottom: '1rem', boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={() => { setDeleteModalOpen(false); setDeleteConfirm(''); }} style={{ flex: 1, padding: '0.625rem', background: '#1a1a1a', border: '1px solid #333', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>Cancel</button>
+              <button
+                disabled={deleteConfirm !== 'DELETE' || isDeleting}
+                onClick={handleDeleteAccount}
+                style={{ flex: 1, padding: '0.625rem', background: deleteConfirm === 'DELETE' ? '#ef4444' : '#1a1a1a', border: 'none', borderRadius: 8, color: '#fff', cursor: deleteConfirm === 'DELETE' ? 'pointer' : 'not-allowed', opacity: isDeleting ? 0.7 : 1 }}
+              >{isDeleting ? 'Deleting...' : 'Delete Account'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

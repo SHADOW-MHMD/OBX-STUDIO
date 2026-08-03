@@ -127,6 +127,13 @@ kanbanRoutes.post("/:interviewId/autofill", requireAuth, async (c) => {
     return c.json({ error: "AI returned no tasks" }, 400);
   }
 
+  // D4: Delete existing items before inserting new ones (prevents accumulation)
+  await c.env.DB.prepare(
+    `DELETE FROM kanban_items WHERE interview_id = ? AND user_id = ?`
+  )
+    .bind(interviewId, userId)
+    .run();
+
   // 4. Insert tasks into the database
   const stmts = [];
   let position = 0;
@@ -151,26 +158,31 @@ kanbanRoutes.post("/:interviewId/autofill", requireAuth, async (c) => {
 kanbanRoutes.post("/:interviewId/item", requireAuth, async (c) => {
   const userId = c.get("userId" as never) as string;
   const interviewId = c.req.param("interviewId");
-  const { title, description } = await c.req.json<{
+  const { title, description, status } = await c.req.json<{
     title: string;
     description?: string;
+    status?: "todo" | "in_progress" | "done";
   }>();
 
   if (!title?.trim()) return c.json({ error: "Title required" }, 400);
 
-  // Get current max position
+  const validStatus = ["todo", "in_progress", "done"].includes(status ?? "todo")
+    ? (status ?? "todo")
+    : "todo";
+
+  // Get current max position in the target column
   const max = await c.env.DB.prepare(
-    `SELECT MAX(position) as maxPos FROM kanban_items WHERE interview_id = ? AND user_id = ?`
+    `SELECT MAX(position) as maxPos FROM kanban_items WHERE interview_id = ? AND user_id = ? AND status = ?`
   )
-    .bind(interviewId, userId)
+    .bind(interviewId, userId, validStatus)
     .first<{ maxPos: number | null }>();
 
   const id = nanoid();
   await c.env.DB.prepare(
     `INSERT INTO kanban_items (id, interview_id, user_id, title, description, status, position, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'todo', ?, datetime('now'), datetime('now'))`
+     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
   )
-    .bind(id, interviewId, userId, title, description ?? null, (max?.maxPos ?? -1) + 1)
+    .bind(id, interviewId, userId, title.trim(), description ?? null, validStatus, (max?.maxPos ?? -1) + 1)
     .run();
 
   return c.json({ id }, 201);

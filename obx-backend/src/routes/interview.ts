@@ -10,7 +10,7 @@ export const interviewRoutes = new Hono<{ Bindings: Env }>();
 
 /**
  * POST /interview — create a new interview session.
- * Checks daily limit before creating. Requires template_id.
+ * Checks daily limit before creating.
  */
 interviewRoutes.post("/", requireAuth, async (c) => {
   const userId = c.get("userId" as never) as string;
@@ -23,14 +23,20 @@ interviewRoutes.post("/", requireAuth, async (c) => {
     );
   }
 
-  const { personaId } = await c.req.json<{ personaId: string }>().catch(() => ({ personaId: "pm" }));
+  // A2: Enforce daily interview limit
+  if (dbUser.interviews_used_today >= dbUser.interviews_limit) {
+    return c.json({ error: "Daily limit reached", code: "RATE_LIMITED" }, 429);
+  }
+
+  const { personaId, template_id } = await c.req.json<{ personaId: string; template_id?: string }>()
+    .catch(() => ({ personaId: "pm", template_id: undefined }));
 
   const id = nanoid();
   await c.env.DB.prepare(
-    `INSERT INTO interviews (id, user_id, persona, status, created_at, updated_at)
-     VALUES (?, ?, ?, 'in_progress', datetime('now'), datetime('now'))`
+    `INSERT INTO interviews (id, user_id, persona, template_id, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, 'in_progress', datetime('now'), datetime('now'))`
   )
-    .bind(id, userId, personaId)
+    .bind(id, userId, personaId, template_id ?? null)
     .run();
 
   // Increment daily usage
@@ -98,6 +104,7 @@ interviewRoutes.get("/:id", requireAuth, async (c) => {
 
 /**
  * POST /interview/:id/message — send a user message, get AI question back (streamed).
+ * Supports [SKIP] and [REASK] tokens for C3.
  */
 interviewRoutes.post("/:id/message", requireAuth, async (c) => {
   const userId = c.get("userId" as never) as string;
@@ -145,10 +152,19 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
 
   // Retrieve persona to update system prompt dynamically for this turn
   const personaId = (interview as any).persona || "pm";
-  
+
+  // C3: Handle [SKIP] and [REASK] special tokens
+  let systemPromptOverride = getInterviewSystemPrompt(personaId, isHeavyTurn);
+  if (content.includes("[SKIP]")) {
+    systemPromptOverride += "\n\nIMPORTANT: The user wants to skip this question. Acknowledge briefly and move to the next topic immediately.";
+  }
+  if (content.includes("[REASK]")) {
+    systemPromptOverride += "\n\nIMPORTANT: The user wants the question rephrased. Ask the same question using completely different wording and a fresh angle.";
+  }
+
   const systemMessageIndex = allMessages.results.findIndex(m => m.role === "system");
   if (systemMessageIndex !== -1) {
-    allMessages.results[systemMessageIndex].content = getInterviewSystemPrompt(personaId, isHeavyTurn);
+    allMessages.results[systemMessageIndex].content = systemPromptOverride;
   }
 
   // Inject the canvasState into the very last user message in memory (so the AI can read it)
@@ -203,12 +219,12 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
-        
+
         let newlineIndex;
         while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
           const line = buffer.slice(0, newlineIndex).trim();
           buffer = buffer.slice(newlineIndex + 1);
-          
+
           if (line.startsWith("data: ") && line !== "data: [DONE]") {
             try {
               const json = JSON.parse(line.slice(6));
@@ -287,6 +303,32 @@ interviewRoutes.patch("/:id", requireAuth, async (c) => {
 });
 
 /**
+ * PATCH /interview/:id/canvas — D1: Save canvas state.
+ */
+interviewRoutes.patch("/:id/canvas", requireAuth, async (c) => {
+  const userId = c.get("userId" as never) as string;
+  const id = c.req.param("id");
+
+  const interview = await c.env.DB.prepare(
+    `SELECT id FROM interviews WHERE id = ? AND user_id = ?`
+  )
+    .bind(id, userId)
+    .first();
+
+  if (!interview) return c.json({ error: "Not found" }, 404);
+
+  const { nodes, edges } = await c.req.json<{ nodes: any[]; edges: any[] }>();
+
+  await c.env.DB.prepare(
+    `UPDATE interviews SET canvas_state = ?, updated_at = datetime('now') WHERE id = ?`
+  )
+    .bind(JSON.stringify({ nodes, edges }), id)
+    .run();
+
+  return c.json({ ok: true });
+});
+
+/**
  * DELETE /interview/:id — delete interview and all its data.
  */
 interviewRoutes.delete("/:id", requireAuth, async (c) => {
@@ -309,4 +351,64 @@ interviewRoutes.delete("/:id", requireAuth, async (c) => {
   ]);
 
   return c.json({ ok: true });
+});
+
+/**
+ * POST /interview/:id/duplicate — C7: Duplicate an interview.
+ */
+interviewRoutes.post("/:id/duplicate", requireAuth, async (c) => {
+  const userId = c.get("userId" as never) as string;
+  const dbUser = c.get("dbUser" as never) as DbUser;
+  const sourceId = c.req.param("id");
+
+  // Check daily limit
+  if (dbUser.interviews_used_today >= dbUser.interviews_limit) {
+    return c.json({ error: "Daily limit reached", code: "RATE_LIMITED" }, 429);
+  }
+
+  const interview = await c.env.DB.prepare(
+    `SELECT * FROM interviews WHERE id = ? AND user_id = ?`
+  )
+    .bind(sourceId, userId)
+    .first();
+
+  if (!interview) return c.json({ error: "Not found" }, 404);
+
+  const messages = await c.env.DB.prepare(
+    `SELECT * FROM messages WHERE interview_id = ? ORDER BY created_at ASC`
+  )
+    .bind(sourceId)
+    .all<DbMessage>();
+
+  const newId = nanoid();
+  const sourceTitle = (interview as any).title ?? "Untitled idea";
+  const newTitle = `Copy of ${sourceTitle}`.slice(0, 100);
+
+  await c.env.DB.prepare(
+    `INSERT INTO interviews (id, user_id, persona, title, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, 'in_progress', datetime('now'), datetime('now'))`
+  )
+    .bind(newId, userId, (interview as any).persona ?? "pm", newTitle)
+    .run();
+
+  // Copy messages
+  const stmts = messages.results.map((msg) =>
+    c.env.DB.prepare(
+      `INSERT INTO messages (id, interview_id, role, content, created_at) VALUES (?, ?, ?, ?, datetime('now'))`
+    ).bind(nanoid(), newId, msg.role, msg.content)
+  );
+
+  if (stmts.length > 0) {
+    await c.env.DB.batch(stmts);
+  }
+
+  // Increment usage
+  await c.env.DB.prepare(
+    `UPDATE users SET interviews_used_today = interviews_used_today + 1,
+     total_interviews = total_interviews + 1 WHERE id = ?`
+  )
+    .bind(userId)
+    .run();
+
+  return c.json({ id: newId }, 201);
 });

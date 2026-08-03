@@ -7,7 +7,8 @@ import { useRouter } from "next/navigation";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { api, type KanbanItem } from "@/lib/api";
 import { Navbar } from "@/components/layout/Navbar";
-import { GripVertical, Plus, Trash2, Loader2, Cpu, ArrowLeft } from "lucide-react";
+import { MobileBlock } from "@/components/layout/MobileBlock";
+import { GripVertical, Plus, Trash2, Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useAuthStore } from "@/lib/store";
 
@@ -25,18 +26,9 @@ export default function KanbanPage(props: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const [items, setItems] = useState<KanbanItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
   const [addingTo, setAddingTo] = useState<ColumnType | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState("");
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setIsMobile(window.innerWidth < 1024);
-      const handleResize = () => setIsMobile(window.innerWidth < 1024);
-      window.addEventListener("resize", handleResize);
-      return () => window.removeEventListener("resize", handleResize);
-    }
-  }, []);
+  const [undoItem, setUndoItem] = useState<{ item: KanbanItem; timer: ReturnType<typeof setTimeout> } | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -140,31 +132,40 @@ export default function KanbanPage(props: { params: Promise<{ id: string }> }) {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    setItems(items.filter(i => i.id !== id));
-    try {
-      await api.kanban.delete(id);
-    } catch (err) {
-      console.error(err);
-      fetchItems(); // revert on error
+  const handleDelete = (id: string) => {
+    // If there's an existing pending undo, commit that deletion immediately
+    if (undoItem) {
+      clearTimeout(undoItem.timer);
+      api.kanban.delete(undoItem.item.id).catch(console.error);
     }
+
+    const itemToDelete = items.find(i => i.id === id);
+    if (!itemToDelete) return;
+
+    // Optimistically remove from local state
+    setItems(prev => prev.filter(i => i.id !== id));
+
+    // Start 5-second timer to actually delete
+    const timer = setTimeout(async () => {
+      try {
+        await api.kanban.delete(id);
+      } catch (err) {
+        console.error(err);
+        fetchItems(); // revert on error
+      }
+      setUndoItem(null);
+    }, 5000);
+
+    setUndoItem({ item: itemToDelete, timer });
   };
 
-  if (isMobile) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem", textAlign: "center", gap: "1.5rem", background: "#000" }}>
-        <div style={{ width: 56, height: 56, borderRadius: 14, background: "#111", border: "1px solid #222", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Cpu size={24} color="#fff" />
-        </div>
-        <div>
-          <h1 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "0.5rem", color: "#fff" }}>OBX-STUDIO</h1>
-          <p style={{ color: "#888", fontSize: "0.9rem", maxWidth: 280, lineHeight: 1.6 }}>
-            Idea locked in! 🚀 Open this on desktop to manage your kanban board.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const handleUndo = () => {
+    if (!undoItem) return;
+    clearTimeout(undoItem.timer);
+    // Restore the item to local state
+    setItems(prev => [...prev, undoItem.item].sort((a, b) => a.position - b.position));
+    setUndoItem(null);
+  };
 
   if (loading || isLoading) {
     return (
@@ -175,115 +176,125 @@ export default function KanbanPage(props: { params: Promise<{ id: string }> }) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#000", display: "flex", flexDirection: "column" }}>
-      <Navbar />
-      <main style={{ flex: 1, paddingTop: 88, paddingBottom: "2rem", paddingLeft: "1.5rem", paddingRight: "1.5rem", display: "flex", flexDirection: "column" }}>
-        <div style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-            <Link href={`/output/${params.id}`} className="btn btn-ghost" style={{ padding: "0.5rem" }}>
-              <ArrowLeft size={16} /> Back to Output
-            </Link>
-            <h1 style={{ fontSize: "1.25rem", fontWeight: 700 }}>Kanban Board</h1>
+    <MobileBlock>
+      <div style={{ minHeight: "100vh", background: "#000", display: "flex", flexDirection: "column" }}>
+        <Navbar />
+        <main style={{ flex: 1, paddingTop: 88, paddingBottom: "2rem", paddingLeft: "1.5rem", paddingRight: "1.5rem", display: "flex", flexDirection: "column" }}>
+          <div style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+              <Link href={`/output/${params.id}`} className="btn btn-ghost" style={{ padding: "0.5rem" }}>
+                <ArrowLeft size={16} /> Back to Output
+              </Link>
+              <h1 style={{ fontSize: "1.25rem", fontWeight: 700 }}>Kanban Board</h1>
+            </div>
+            <button 
+              onClick={handleAutofill} 
+              disabled={isAutofilling} 
+              className="btn btn-primary"
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 1rem", background: "#fff", color: "#000", border: "none", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 600, cursor: "pointer" }}
+            >
+              {isAutofilling ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+              {isAutofilling ? "Auto-filling..." : "Auto-fill Board with AI"}
+            </button>
           </div>
-          <button 
-            onClick={handleAutofill} 
-            disabled={isAutofilling} 
-            className="btn btn-primary"
-            style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 1rem", background: "#fff", color: "#000", border: "none", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 600, cursor: "pointer" }}
-          >
-            {isAutofilling ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-            {isAutofilling ? "Auto-filling..." : "Auto-fill Board with AI"}
-          </button>
-        </div>
-        
-        <DragDropContext onDragEnd={onDragEnd}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.5rem", alignItems: "start", height: "100%" }}>
-            {COLUMNS.map(col => {
-              const colItems = items.filter(i => i.status === col.id).sort((a, b) => a.position - b.position);
-              return (
-                <div key={col.id} style={{ background: "#0a0a0a", border: "1px solid #1a1a1a", borderRadius: 12, display: "flex", flexDirection: "column", height: "100%", minHeight: 400 }}>
-                  <div style={{ padding: "1rem", borderBottom: `2px solid ${col.color}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      <h2 style={{ fontSize: "0.95rem", fontWeight: 600 }}>{col.title}</h2>
-                      <span style={{ background: "#1a1a1a", padding: "2px 8px", borderRadius: 12, fontSize: "0.75rem", color: "#888" }}>
-                        {colItems.length}
-                      </span>
-                    </div>
-                    <button onClick={() => setAddingTo(col.id)} className="btn btn-ghost" style={{ padding: "4px" }}>
-                      <Plus size={16} />
-                    </button>
-                  </div>
-
-                  <Droppable droppableId={col.id}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        style={{ padding: "1rem", flex: 1, display: "flex", flexDirection: "column", gap: "0.75rem", background: snapshot.isDraggingOver ? "rgba(255,255,255,0.02)" : "transparent" }}
-                      >
-                        {colItems.map((item, index) => (
-                          <Draggable key={item.id} draggableId={item.id} index={index}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                className="card"
-                                style={{
-                                  ...provided.draggableProps.style,
-                                  padding: "1rem",
-                                  background: snapshot.isDragging ? "#161616" : "#111",
-                                  boxShadow: snapshot.isDragging ? "0 8px 24px rgba(0,0,0,0.5)" : "none",
-                                  display: "flex",
-                                  gap: "0.5rem",
-                                  alignItems: "flex-start"
-                                }}
-                              >
-                                <div {...provided.dragHandleProps} style={{ color: "#444", marginTop: 2, cursor: "grab" }}>
-                                  <GripVertical size={16} />
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                  <p style={{ fontSize: "0.9rem", fontWeight: 500, color: "#fff", marginBottom: item.description ? "0.25rem" : 0 }}>{item.title}</p>
-                                  {item.description && <p style={{ fontSize: "0.8rem", color: "#888" }}>{item.description}</p>}
-                                </div>
-                                <button onClick={() => handleDelete(item.id)} style={{ color: "#444", background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                        
-                        {addingTo === col.id && (
-                          <form onSubmit={(e) => handleAddTask(e, col.id)} style={{ marginTop: "0.5rem" }}>
-                            <input
-                              autoFocus
-                              value={newTaskTitle}
-                              onChange={e => setNewTaskTitle(e.target.value)}
-                              onBlur={() => {
-                                if (!newTaskTitle.trim()) setAddingTo(null);
-                              }}
-                              placeholder="Task title..."
-                              className="input"
-                              style={{ padding: "0.5rem", fontSize: "0.85rem" }}
-                            />
-                          </form>
-                        )}
-                        
-                        {colItems.length === 0 && !addingTo && (
-                          <div style={{ border: "1px dashed #222", borderRadius: 8, padding: "2rem 1rem", textAlign: "center", color: "#555", fontSize: "0.85rem" }}>
-                            Drop tasks here
-                          </div>
-                        )}
+          
+          <DragDropContext onDragEnd={onDragEnd}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.5rem", alignItems: "start", height: "100%" }}>
+              {COLUMNS.map(col => {
+                const colItems = items.filter(i => i.status === col.id).sort((a, b) => a.position - b.position);
+                return (
+                  <div key={col.id} style={{ background: "#0a0a0a", border: "1px solid #1a1a1a", borderRadius: 12, display: "flex", flexDirection: "column", height: "100%", minHeight: 400 }}>
+                    <div style={{ padding: "1rem", borderBottom: `2px solid ${col.color}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <h2 style={{ fontSize: "0.95rem", fontWeight: 600 }}>{col.title}</h2>
+                        <span style={{ background: "#1a1a1a", padding: "2px 8px", borderRadius: 12, fontSize: "0.75rem", color: "#888" }}>
+                          {colItems.length}
+                        </span>
                       </div>
-                    )}
-                  </Droppable>
-                </div>
-              );
-            })}
+                      <button onClick={() => setAddingTo(col.id)} className="btn btn-ghost" style={{ padding: "4px" }}>
+                        <Plus size={16} />
+                      </button>
+                    </div>
+
+                    <Droppable droppableId={col.id}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          style={{ padding: "1rem", flex: 1, display: "flex", flexDirection: "column", gap: "0.75rem", background: snapshot.isDraggingOver ? "rgba(255,255,255,0.02)" : "transparent" }}
+                        >
+                          {colItems.map((item, index) => (
+                            <Draggable key={item.id} draggableId={item.id} index={index}>
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  className="card"
+                                  style={{
+                                    ...provided.draggableProps.style,
+                                    padding: "1rem",
+                                    background: snapshot.isDragging ? "#161616" : "#111",
+                                    boxShadow: snapshot.isDragging ? "0 8px 24px rgba(0,0,0,0.5)" : "none",
+                                    display: "flex",
+                                    gap: "0.5rem",
+                                    alignItems: "flex-start"
+                                  }}
+                                >
+                                  <div {...provided.dragHandleProps} style={{ color: "#444", marginTop: 2, cursor: "grab" }}>
+                                    <GripVertical size={16} />
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <p style={{ fontSize: "0.9rem", fontWeight: 500, color: "#fff", marginBottom: item.description ? "0.25rem" : 0 }}>{item.title}</p>
+                                    {item.description && <p style={{ fontSize: "0.8rem", color: "#888" }}>{item.description}</p>}
+                                  </div>
+                                  <button onClick={() => handleDelete(item.id)} style={{ color: "#444", background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                          
+                          {addingTo === col.id && (
+                            <form onSubmit={(e) => handleAddTask(e, col.id)} style={{ marginTop: "0.5rem" }}>
+                              <input
+                                autoFocus
+                                value={newTaskTitle}
+                                onChange={e => setNewTaskTitle(e.target.value)}
+                                onBlur={() => {
+                                  if (!newTaskTitle.trim()) setAddingTo(null);
+                                }}
+                                placeholder="Task title..."
+                                className="input"
+                                style={{ padding: "0.5rem", fontSize: "0.85rem" }}
+                              />
+                            </form>
+                          )}
+                          
+                          {colItems.length === 0 && !addingTo && (
+                            <div style={{ border: "1px dashed #222", borderRadius: 8, padding: "2rem 1rem", textAlign: "center", color: "#555", fontSize: "0.85rem" }}>
+                              Drop tasks here
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </Droppable>
+                  </div>
+                );
+              })}
+            </div>
+          </DragDropContext>
+        </main>
+
+        {/* Undo snackbar */}
+        {undoItem && (
+          <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#1a1a1a', border: '1px solid #333', borderRadius: 10, padding: '0.75rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', zIndex: 500, animation: 'slideInRight 0.2s ease', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+            <span style={{ color: '#aaa', fontSize: '0.875rem' }}>Task deleted</span>
+            <button onClick={handleUndo} style={{ background: 'transparent', border: '1px solid #555', color: '#fff', padding: '0.25rem 0.75rem', borderRadius: 6, cursor: 'pointer', fontSize: '0.875rem' }}>Undo</button>
           </div>
-        </DragDropContext>
-      </main>
-    </div>
+        )}
+      </div>
+    </MobileBlock>
   );
 }

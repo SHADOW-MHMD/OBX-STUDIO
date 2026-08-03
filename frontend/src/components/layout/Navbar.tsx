@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Cpu, LayoutDashboard, LogOut, Settings, Shield } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Cpu, LogOut, Settings, Shield } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
 import { createClient } from "@/lib/supabase";
 
@@ -10,12 +11,32 @@ export function Navbar() {
   const { user } = useAuthStore();
   const pathname = usePathname();
   const router = useRouter();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleSignOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/");
   };
+
+  // A10 Fix: Click-outside listener + Escape key
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDropdownOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEsc);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, []);
 
   if (!user) return null;
 
@@ -101,80 +122,106 @@ export function Navbar() {
       </nav>
 
       {/* User section */}
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", position: "relative" }} className="group">
-        
+      <div ref={dropdownRef} style={{ position: "relative" }}>
         {/* Avatar trigger */}
-        <div
+        <button
+          onClick={() => setDropdownOpen((v) => !v)}
           style={{
             width: 32,
             height: 32,
             borderRadius: "50%",
-            background: "#1a1a1a",
-            border: "1px solid #333",
+            background: dropdownOpen ? "#222" : "#1a1a1a",
+            border: `1px solid ${dropdownOpen ? "#444" : "#333"}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             fontSize: "0.85rem",
             color: "#888",
             cursor: "pointer",
+            transition: "all 0.15s",
           }}
+          aria-label="User menu"
+          aria-expanded={dropdownOpen}
         >
           {(user.display_name ?? user.email)[0].toUpperCase()}
-        </div>
+        </button>
 
-        {/* Dropdown Menu (shown on group hover) */}
-        <div
-          className="absolute right-0 top-full mt-2 w-48 rounded-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50"
-          style={{
-            background: "#111",
-            border: "1px solid #222",
-          }}
-        >
-          <div style={{ padding: "0.5rem 1rem", borderBottom: "1px solid #222", marginBottom: "0.25rem" }}>
-            <p style={{ color: "#fff", fontSize: "0.85rem", margin: 0, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {user.display_name || user.email}
-            </p>
+        {/* Dropdown Menu */}
+        {dropdownOpen && (
+          <div
+            style={{
+              position: "absolute",
+              right: 0,
+              top: "calc(100% + 8px)",
+              width: 200,
+              borderRadius: 10,
+              background: "#111",
+              border: "1px solid #222",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+              zIndex: 200,
+              animation: "scaleIn 0.15s ease",
+              transformOrigin: "top right",
+              overflow: "hidden",
+            }}
+          >
+            <div style={{ padding: "0.625rem 1rem", borderBottom: "1px solid #1a1a1a" }}>
+              <p style={{ color: "#fff", fontSize: "0.85rem", margin: 0, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {user.display_name || user.email}
+              </p>
+              <p style={{ color: "#555", fontSize: "0.75rem", margin: 0, marginTop: 2 }}>
+                {user.tier.toUpperCase()} TIER
+              </p>
+            </div>
+            <Link
+              href="/settings"
+              onClick={() => setDropdownOpen(false)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.5rem 1rem",
+                color: "#aaa",
+                textDecoration: "none",
+                fontSize: "0.85rem",
+                transition: "color 0.1s, background 0.1s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "#fff";
+                e.currentTarget.style.background = "#1a1a1a";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "#aaa";
+                e.currentTarget.style.background = "transparent";
+              }}
+            >
+              <Settings size={14} />
+              Settings
+            </Link>
+            <button
+              onClick={handleSignOut}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.5rem 1rem",
+                color: "#ff4444",
+                textDecoration: "none",
+                fontSize: "0.85rem",
+                background: "transparent",
+                border: "none",
+                width: "100%",
+                cursor: "pointer",
+                textAlign: "left",
+                transition: "background 0.1s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#ff44441a")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <LogOut size={14} />
+              Sign out
+            </button>
           </div>
-          <Link
-            href="/settings"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              padding: "0.5rem 1rem",
-              color: "#aaa",
-              textDecoration: "none",
-              fontSize: "0.85rem",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "#aaa")}
-          >
-            <Settings size={14} />
-            Settings
-          </Link>
-          <button
-            onClick={handleSignOut}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              padding: "0.5rem 1rem",
-              color: "#ff4444",
-              textDecoration: "none",
-              fontSize: "0.85rem",
-              background: "transparent",
-              border: "none",
-              width: "100%",
-              cursor: "pointer",
-              textAlign: "left",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#ff44441a")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-          >
-            <LogOut size={14} />
-            Sign out
-          </button>
-        </div>
+        )}
       </div>
     </header>
   );

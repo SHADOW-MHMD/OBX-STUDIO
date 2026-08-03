@@ -3,6 +3,7 @@
 export const runtime = 'edge';
 
 import { useEffect, useState, use } from "react";
+import { useToast } from "@/hooks/useToast";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -68,7 +69,10 @@ export default function OutputPage(props: { params: Promise<{ id: string }> }) {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<OutputType | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedForNotion, setCopiedForNotion] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [addingFormat, setAddingFormat] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -125,6 +129,19 @@ export default function OutputPage(props: { params: Promise<{ id: string }> }) {
     navigator.clipboard.writeText(content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const copyForNotion = () => {
+    // Strip HTML-incompatible markdown, clean up for Notion paste
+    const notionText = activeOutput?.content
+      .replace(/^(#{1,6}) /gm, (_, h) => '#'.repeat(h.length) + ' ') // keep headings
+      .replace(/\*\*(.+?)\*\*/g, '**$1**') // bold ok
+      .replace(/`{3}[\w]*\n([\s\S]*?)`{3}/g, '```\n$1```') // code blocks ok
+      ?? '';
+    navigator.clipboard.writeText(notionText);
+    setCopiedForNotion(true);
+    setTimeout(() => setCopiedForNotion(false), 2000);
+    toast('Copied for Notion!', 'success');
   };
 
   if (isMobile) {
@@ -201,7 +218,7 @@ export default function OutputPage(props: { params: Promise<{ id: string }> }) {
                 ))}
                 {outputs.length < 5 && (
                   <button
-                    onClick={() => setOutputs([])}
+                    onClick={() => setAddingFormat(true)}
                     className="btn btn-ghost"
                   >
                     + Add Format
@@ -218,11 +235,46 @@ export default function OutputPage(props: { params: Promise<{ id: string }> }) {
               </div>
             </div>
 
+            {addingFormat && (
+              <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#fff', margin: 0 }}>Add another format</h3>
+                  <button onClick={() => setAddingFormat(false)} className="btn btn-ghost" style={{ fontSize: '0.8rem' }}>✕ Cancel</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem' }}>
+                  {FORMATS.filter(f => !outputs.some(o => o.type === f.type)).map((f) => (
+                    <div key={f.type} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ padding: '0.375rem', background: '#1a1a1a', borderRadius: 6 }}>
+                          <f.icon size={16} color="#fff" />
+                        </div>
+                        <h3 style={{ fontSize: '0.95rem', fontWeight: 600 }}>{f.title}</h3>
+                      </div>
+                      <p style={{ color: '#888', fontSize: '0.8rem', flex: 1 }}>{f.desc}</p>
+                      <button
+                        onClick={() => { handleGenerate(f.type); setAddingFormat(false); }}
+                        disabled={generating !== null}
+                        className="btn btn-primary"
+                        style={{ width: '100%', fontSize: '0.85rem' }}
+                      >
+                        {generating === f.type ? (
+                          <><Loader2 size={14} className="animate-spin" /> Generating...</>
+                        ) : 'Generate'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {activeOutput && (
               <div className="card" style={{ padding: "2rem" }}>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginBottom: "2rem" }}>
                   <button onClick={() => handleCopy(activeOutput.content)} className="btn btn-secondary">
                     {copied ? <Check size={16} /> : <Copy size={16} />} Copy
+                  </button>
+                  <button onClick={copyForNotion} className="btn btn-secondary">
+                    {copiedForNotion ? <Check size={16} /> : <Copy size={16} />} Copy for Notion
                   </button>
                   <button onClick={() => downloadMarkdown(activeOutput.content, `spec-${activeOutput.type}`)} className="btn btn-secondary">
                     <Download size={16} /> .md

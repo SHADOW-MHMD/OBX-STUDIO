@@ -3,19 +3,11 @@
 import { useEffect, useState } from "react";
 import { Cpu } from "lucide-react";
 
-function isMobile(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.innerWidth < 1024 ||
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-      navigator.userAgent
-    );
-}
-
 /**
- * On mobile: show a polite block screen.
- * Interview flow is allowed on mobile — only Kanban/Export pages block.
- * This component only blocks the full app on very small screens (<640px)
- * where even the chat UI would be unusable.
+ * On mobile: show a polite block screen for very small screens (<640px).
+ * The isMobile() function has been removed — this component uses inline state
+ * directly, which is the canonical check used in layout.tsx.
+ * A9: Output and Kanban pages no longer need to duplicate this logic.
  */
 export function MobileBlock({ children }: { children: React.ReactNode }) {
   const [blocked, setBlocked] = useState(false);

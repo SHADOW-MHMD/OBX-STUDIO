@@ -156,3 +156,57 @@ outputRoutes.get("/:interviewId", requireAuth, async (c) => {
 
   return c.json(results.results);
 });
+
+/**
+ * POST /output/:outputId/share — mark an output as publicly shareable.
+ * Requires auth; verifies ownership before setting shared = 1.
+ */
+outputRoutes.post("/:outputId/share", requireAuth, async (c) => {
+  const userId = c.get("userId" as never) as string;
+  const outputId = c.req.param("outputId");
+
+  const output = await c.env.DB.prepare(
+    `SELECT id FROM outputs WHERE id = ? AND user_id = ?`
+  )
+    .bind(outputId, userId)
+    .first<{ id: string }>();
+
+  if (!output) return c.json({ error: "Not found" }, 404);
+
+  await c.env.DB.prepare(`UPDATE outputs SET shared = 1 WHERE id = ?`)
+    .bind(outputId)
+    .run();
+
+  return c.json({ ok: true, url: "/share/" + outputId });
+});
+
+// ---------------------------------------------------------------------------
+// Public routes — no authentication required
+// ---------------------------------------------------------------------------
+export const publicRoutes = new Hono<{ Bindings: Env }>();
+
+/**
+ * GET /public/share/:outputId — fetch a shared output for public viewing.
+ * Returns 404 if the output doesn't exist or hasn't been shared.
+ */
+publicRoutes.get("/share/:outputId", async (c) => {
+  const outputId = c.req.param("outputId");
+
+  const row = await c.env.DB.prepare(
+    `SELECT o.id, o.content, o.type, i.title AS interview_title
+     FROM outputs o
+     JOIN interviews i ON i.id = o.interview_id
+     WHERE o.id = ? AND o.shared = 1`
+  )
+    .bind(outputId)
+    .first<{ id: string; content: string; type: string; interview_title: string }>();
+
+  if (!row) return c.json({ error: "Not found" }, 404);
+
+  return c.json({
+    id: row.id,
+    content: row.content,
+    type: row.type,
+    interview_title: row.interview_title,
+  });
+});

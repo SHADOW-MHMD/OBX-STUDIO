@@ -87,3 +87,109 @@ userRoutes.patch("/settings", requireAuth, async (c) => {
 
   return c.json({ ok: true });
 });
+
+/** DELETE /user — cascade-delete all user data then remove the auth account */
+userRoutes.delete("/", requireAuth, async (c) => {
+  const userId = c.get("userId" as never) as string;
+
+  // Cascade delete in dependency order
+  const interviewRows = await c.env.DB.prepare(
+    `SELECT id FROM interviews WHERE user_id = ?`
+  )
+    .bind(userId)
+    .all<{ id: string }>();
+
+  const interviewIds = interviewRows.results.map((r) => r.id);
+
+  if (interviewIds.length > 0) {
+    // Delete messages and outputs tied to each interview via batch
+    const deleteMessages = interviewIds.map((iid) =>
+      c.env.DB.prepare(`DELETE FROM messages WHERE interview_id = ?`).bind(iid)
+    );
+    const deleteOutputs = interviewIds.map((iid) =>
+      c.env.DB.prepare(`DELETE FROM outputs WHERE interview_id = ?`).bind(iid)
+    );
+    const deleteKanban = interviewIds.map((iid) =>
+      c.env.DB.prepare(`DELETE FROM kanban_items WHERE interview_id = ?`).bind(iid)
+    );
+    await c.env.DB.batch([...deleteMessages, ...deleteOutputs, ...deleteKanban]);
+  }
+
+  // Delete interviews row
+  await c.env.DB.prepare(`DELETE FROM interviews WHERE user_id = ?`).bind(userId).run();
+  // Delete user row
+  await c.env.DB.prepare(`DELETE FROM users WHERE id = ?`).bind(userId).run();
+
+  // Attempt Supabase admin delete (best-effort)
+  if (c.env.SUPABASE_SERVICE_ROLE_KEY && c.env.SUPABASE_URL) {
+    try {
+      await fetch(`${c.env.SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${c.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          apikey: c.env.SUPABASE_SERVICE_ROLE_KEY,
+        },
+      });
+    } catch (e) {
+      console.error("Supabase admin delete failed (non-fatal):", e);
+    }
+  }
+
+  return c.json({ ok: true });
+});
+
+/** GET /user/export — download all user data as a JSON file */
+userRoutes.get("/export", requireAuth, async (c) => {
+  const userId = c.get("userId" as never) as string;
+  const dbUser = c.get("dbUser" as never) as DbUser;
+
+  const interviewRows = await c.env.DB.prepare(
+    `SELECT * FROM interviews WHERE user_id = ? ORDER BY created_at ASC`
+  )
+    .bind(userId)
+    .all<Record<string, unknown>>();
+
+  const interviews = await Promise.all(
+    interviewRows.results.map(async (interview) => {
+      const iid = interview.id as string;
+
+      const [messages, outputs, kanbanItems] = await Promise.all([
+        c.env.DB.prepare(
+          `SELECT * FROM messages WHERE interview_id = ? ORDER BY created_at ASC`
+        )
+          .bind(iid)
+          .all<Record<string, unknown>>(),
+        c.env.DB.prepare(
+          `SELECT * FROM outputs WHERE interview_id = ? ORDER BY created_at ASC`
+        )
+          .bind(iid)
+          .all<Record<string, unknown>>(),
+        c.env.DB.prepare(
+          `SELECT * FROM kanban_items WHERE interview_id = ? ORDER BY position ASC`
+        )
+          .bind(iid)
+          .all<Record<string, unknown>>(),
+      ]);
+
+      return {
+        ...interview,
+        messages: messages.results,
+        outputs: outputs.results,
+        kanban_items: kanbanItems.results,
+      };
+    })
+  );
+
+  const payload = {
+    user: dbUser,
+    interviews,
+  };
+
+  return new Response(JSON.stringify(payload, null, 2), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      "Content-Disposition": `attachment; filename="obx-studio-export.json"`,
+    },
+  });
+});

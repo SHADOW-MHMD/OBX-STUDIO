@@ -115,15 +115,33 @@ export function parseInterviewResponse(text: string): {
 
 /**
  * Generate and trigger a .md file download.
+ * A8: Sanitizes filename, appends anchor to DOM for compatibility, txt fallback.
  */
 export function downloadMarkdown(content: string, filename: string): void {
-  const blob = new Blob([content], { type: "text/markdown" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename.endsWith(".md") ? filename : `${filename}.md`;
-  a.click();
-  URL.revokeObjectURL(url);
+  // Sanitize filename — strip chars invalid in filenames
+  const safe = filename.replace(/[^a-z0-9\-_\.]/gi, "-").replace(/-+/g, "-");
+  const finalName = safe.endsWith(".md") ? safe : `${safe}.md`;
+
+  try {
+    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = finalName;
+    // Must be in the DOM for Firefox
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch {
+    // .txt fallback if Blob API fails
+    const a = document.createElement("a");
+    a.href = "data:text/plain;charset=utf-8," + encodeURIComponent(content);
+    a.download = finalName.replace(".md", ".txt");
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
 }
 
 /**

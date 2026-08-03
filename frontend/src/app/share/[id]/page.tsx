@@ -103,7 +103,7 @@ export default function SharedInterviewPage() {
       <div style={{ flex: 1, position: 'relative' }}>
         {activeTab === 'canvas' && (
           <div style={{ position: 'absolute', inset: 0 }}>
-            <NeuralCanvas nodes={[]} edges={[]} />
+            <NeuralCanvas nodes={[]} links={[]} />
           </div>
         )}
 

@@ -2,12 +2,14 @@
 
 export const runtime = 'edge';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import Link from 'next/link';
 
 export default function AuthCallbackPage() {
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -21,25 +23,64 @@ export default function AuthCallbackPage() {
       } else if (event === 'SIGNED_OUT') {
         subscription.unsubscribe();
         router.replace('/auth/login');
+      } else if (event === 'USER_UPDATED' && !session) {
+        // OAuth denied or failed
+        subscription.unsubscribe();
+        setError('Authentication was denied or cancelled. Please try again.');
       }
       // Ignore INITIAL_SESSION with no session — wait for the real event
     });
 
-    // Also try getSession after a short delay as a fallback
-    // (in case the auth state change already fired before we subscribed)
-    const timer = setTimeout(async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+    // Fallback: check existing session immediately in case event already fired
+    supabase.auth.getSession().then(({ data, error: sessionError }) => {
+      if (sessionError) {
+        setError(sessionError.message);
+        subscription.unsubscribe();
+        return;
+      }
+      if (data.session) {
         subscription.unsubscribe();
         router.replace('/dashboard');
       }
-    }, 1500);
+    });
 
     return () => {
       subscription.unsubscribe();
-      clearTimeout(timer);
     };
   }, [router]);
+
+  if (error) {
+    return (
+      <main
+        style={{
+          minHeight: '100vh',
+          background: '#000',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          gap: '1.5rem',
+          padding: '2rem',
+          textAlign: 'center',
+        }}
+      >
+        <div
+          style={{
+            background: 'rgba(239,68,68,0.08)',
+            border: '1px solid rgba(239,68,68,0.2)',
+            borderRadius: 12,
+            padding: '1.5rem 2rem',
+            maxWidth: 400,
+          }}
+        >
+          <p style={{ color: '#ef4444', fontSize: '0.95rem', marginBottom: '1rem' }}>{error}</p>
+          <Link href="/auth/login" className="btn btn-secondary" style={{ fontSize: '0.875rem' }}>
+            ← Go back to login
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main

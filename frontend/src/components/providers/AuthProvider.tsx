@@ -1,26 +1,38 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/store";
 import { api } from "@/lib/api";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, setIsLoading } = useAuthStore();
+  // A7 Fix: track last synced token to avoid duplicate API calls
+  const lastSyncedTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
 
     const syncUser = async (session: any) => {
       if (!session) {
+        lastSyncedTokenRef.current = null;
         setUser(null);
         setIsLoading(false);
         return;
       }
+
+      // Skip if we already synced this exact token
+      const token = session.access_token;
+      if (lastSyncedTokenRef.current === token) {
+        setIsLoading(false);
+        return;
+      }
+      lastSyncedTokenRef.current = token;
+
       try {
         const profile = await api.auth.me();
         setUser(profile);
-        
+
         if (profile.theme_accent && typeof document !== "undefined") {
           const colorMap: Record<string, string> = {
             cyan: "#06b6d4",

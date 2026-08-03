@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { MobileBlock } from "@/components/layout/MobileBlock";
+import { Toaster } from "@/components/ui/Toast";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "OBX-STUDIO — Turn ideas into specs",
@@ -21,14 +29,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      </head>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body>
         <AuthProvider>
           <MobileBlock>{children}</MobileBlock>
+          <Toaster />
         </AuthProvider>
       </body>
     </html>

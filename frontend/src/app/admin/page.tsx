@@ -5,15 +5,15 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
 import { api, type AdminStats, type AdminUser } from "@/lib/api";
 import { Navbar } from "@/components/layout/Navbar";
+import Link from "next/link";
 import {
   Users,
   Activity,
-  MessageSquare,
   AlertTriangle,
   TrendingUp,
   Shield,
   RefreshCw,
-  ChevronDown,
+  Cpu,
 } from "lucide-react";
 
 function StatCard({
@@ -71,6 +71,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (!isLoading) {
@@ -79,9 +80,9 @@ export default function AdminPage() {
     }
   }, [user, isLoading, router]);
 
-  const loadData = async () => {
+  const loadData = async (p = page) => {
     try {
-      const [s, u] = await Promise.all([api.admin.stats(), api.admin.users()]);
+      const [s, u] = await Promise.all([api.admin.stats(), api.admin.users(p)]);
       setStats(s);
       setUsers(u);
     } catch (e) {
@@ -93,12 +94,13 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    if (user?.is_admin) loadData();
-  }, [user]);
+    if (user?.is_admin) loadData(page);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, page]);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadData();
+    loadData(page);
   };
 
   const toggleAdmin = async (u: AdminUser) => {
@@ -122,6 +124,18 @@ export default function AdminPage() {
       ? Math.round((stats.interviews_completed / stats.interviews_started) * 100)
       : 0;
 
+  const btnStyle = (disabled: boolean): React.CSSProperties => ({
+    background: disabled ? "#111" : "#1a1a1a",
+    border: "1px solid #222",
+    borderRadius: 6,
+    padding: "0.375rem 0.875rem",
+    color: disabled ? "#333" : "#888",
+    fontSize: "0.8rem",
+    cursor: disabled ? "not-allowed" : "pointer",
+    fontFamily: "inherit",
+    transition: "all 0.15s ease",
+  });
+
   return (
     <div style={{ minHeight: "100vh", background: "#000" }}>
       <Navbar />
@@ -132,7 +146,7 @@ export default function AdminPage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: "2rem",
+            marginBottom: "0.75rem",
           }}
         >
           <div>
@@ -151,6 +165,11 @@ export default function AdminPage() {
             <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
             Refresh
           </button>
+        </div>
+
+        {/* Changelog link */}
+        <div style={{ marginBottom: "2rem" }}>
+          <Link href="/changelog" style={{ color: "#555", fontSize: "0.8rem", textDecoration: "none" }}>📋 View Changelog</Link>
         </div>
 
         {loading ? (
@@ -190,6 +209,12 @@ export default function AdminPage() {
                 icon={AlertTriangle}
                 sub="Users at daily limit"
                 color={stats && stats.rate_limit_hits > 10 ? "#f59e0b" : "#fff"}
+              />
+              <StatCard
+                label="Token Usage Today"
+                value={stats?.total_token_usage_today ?? "N/A"}
+                icon={Cpu}
+                sub="Tokens consumed today"
               />
             </div>
 
@@ -332,6 +357,25 @@ export default function AdminPage() {
                     No users yet.
                   </div>
                 )}
+              </div>
+
+              {/* Pagination */}
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem 1.5rem", borderTop: "1px solid #1a1a1a" }}>
+                <button
+                  disabled={page <= 1}
+                  onClick={() => setPage(p => p - 1)}
+                  style={btnStyle(page <= 1)}
+                >
+                  ← Previous
+                </button>
+                <span style={{ color: "#555", fontSize: "0.875rem" }}>Page {page}</span>
+                <button
+                  onClick={() => setPage(p => p + 1)}
+                  disabled={users.length < 20}
+                  style={btnStyle(users.length < 20)}
+                >
+                  Next →
+                </button>
               </div>
             </div>
           </>

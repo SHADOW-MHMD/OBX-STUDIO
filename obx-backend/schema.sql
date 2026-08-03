@@ -1,4 +1,4 @@
--- OBX-STUDIO D1 Schema
+-- OBX-STUDIO D1 Schema (Full, current state)
 -- Run: wrangler d1 execute obx-studio-db --file=schema.sql
 
 CREATE TABLE IF NOT EXISTS users (
@@ -15,6 +15,9 @@ CREATE TABLE IF NOT EXISTS users (
   total_interviews INTEGER NOT NULL DEFAULT 0,
   total_questions_answered INTEGER NOT NULL DEFAULT 0,
   is_admin INTEGER NOT NULL DEFAULT 0, -- SQLite boolean
+  openrouter_key TEXT,
+  openrouter_model TEXT DEFAULT 'nvidia/nemotron-ultra-253b-v1:free',
+  theme_accent TEXT DEFAULT 'cyan',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -23,7 +26,10 @@ CREATE TABLE IF NOT EXISTS interviews (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title TEXT,
+  persona TEXT,
   status TEXT NOT NULL DEFAULT 'in_progress', -- 'in_progress' | 'completed'
+  canvas_state TEXT, -- JSON { nodes, edges }
+  template_id TEXT REFERENCES templates(id),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -47,6 +53,7 @@ CREATE TABLE IF NOT EXISTS outputs (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   type TEXT NOT NULL, -- 'prd' | 'summary' | 'roadmap' | 'techstack' | 'all'
   content TEXT NOT NULL,
+  shared INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -67,6 +74,7 @@ CREATE TABLE IF NOT EXISTS kanban_items (
 
 CREATE INDEX IF NOT EXISTS idx_kanban_interview_id ON kanban_items(interview_id);
 CREATE INDEX IF NOT EXISTS idx_kanban_user_id ON kanban_items(user_id);
+
 CREATE TABLE IF NOT EXISTS templates (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -79,9 +87,6 @@ CREATE TABLE IF NOT EXISTS templates (
 );
 
 CREATE INDEX IF NOT EXISTS idx_templates_owner_id ON templates(owner_id);
-
--- SQLite ADD COLUMN for interviews table (safe to fail if already exists)
-ALTER TABLE interviews ADD COLUMN template_id TEXT REFERENCES templates(id);
 
 -- Insert the 4 base system templates
 -- We use INSERT OR REPLACE to update them if they exist

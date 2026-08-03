@@ -11,6 +11,7 @@ export type AuthContext = {
 
 /**
  * Middleware: verify JWT, load/upsert user in D1, attach to context.
+ * D5: Consolidated from 4 sequential queries to a single atomic upsert + one SELECT.
  * ponytail: no separate session table — JWT is the session. Ceiling: can't
  * server-side revoke tokens before expiry; upgrade path is a token blocklist in KV.
  */
@@ -32,37 +33,23 @@ export async function requireAuth(
 
   const today = new Date().toISOString().split("T")[0];
 
-  // Upsert user — first visit creates the row
+  // D5: Single atomic upsert — handles insert, daily reset, streak update in one go
   await c.env.DB.prepare(
-    `INSERT INTO users (id, email, tier, interviews_used_today, interviews_limit, last_reset_date, streak, total_interviews, total_questions_answered, is_admin, created_at, updated_at)
-     VALUES (?, ?, 'free', 0, 3, ?, 0, 0, 0, 0, datetime('now'), datetime('now'))
+    `INSERT INTO users (id, email, tier, interviews_used_today, interviews_limit, last_reset_date, streak, last_active_date, total_interviews, total_questions_answered, is_admin, created_at, updated_at)
+     VALUES (?, ?, 'free', 0, 3, ?, 0, ?, 0, 0, 0, datetime('now'), datetime('now'))
      ON CONFLICT(id) DO UPDATE SET
        email = excluded.email,
-       updated_at = datetime('now')`
-  )
-    .bind(payload.sub, payload.email, today)
-    .run();
-
-  // Reset daily counter if it's a new day
-  await c.env.DB.prepare(
-    `UPDATE users SET interviews_used_today = 0, last_reset_date = ?
-     WHERE id = ? AND last_reset_date < ?`
-  )
-    .bind(today, payload.sub, today)
-    .run();
-
-  // Update streak
-  await c.env.DB.prepare(
-    `UPDATE users SET
+       interviews_used_today = CASE WHEN last_reset_date < ? THEN 0 ELSE interviews_used_today END,
+       last_reset_date = CASE WHEN last_reset_date < ? THEN ? ELSE last_reset_date END,
        streak = CASE
          WHEN last_active_date = date('now', '-1 day') THEN streak + 1
          WHEN last_active_date = date('now') THEN streak
          ELSE 1
        END,
-       last_active_date = date('now')
-     WHERE id = ?`
+       last_active_date = date('now'),
+       updated_at = datetime('now')`
   )
-    .bind(payload.sub)
+    .bind(payload.sub, payload.email, today, today, today, today, today)
     .run();
 
   const dbUser = await c.env.DB.prepare(
@@ -73,6 +60,13 @@ export async function requireAuth(
 
   if (!dbUser) {
     return c.json({ error: "User not found" }, 500);
+  }
+
+  // D2: Send admin email alert on first user creation
+  if (dbUser.created_at === dbUser.updated_at) {
+    c.executionCtx?.waitUntil?.(
+      sendNewUserAlert(c.env, payload.email, payload.sub).catch(() => {})
+    );
   }
 
   c.set("userId" as never, payload.sub);
@@ -91,4 +85,37 @@ export async function requireAdmin(
     return c.json({ error: "Forbidden" }, 403);
   }
   return next();
+}
+
+/**
+ * D2: Send admin email alert when a new user signs up.
+ * Uses Resend API if RESEND_API_KEY is set.
+ */
+async function sendNewUserAlert(env: Env, userEmail: string, userId: string): Promise<void> {
+  const adminEmail = (env as any).ADMIN_EMAIL;
+  const resendKey = (env as any).RESEND_API_KEY;
+  if (!adminEmail || !resendKey) return;
+
+  const countRow = await (env as any).DB?.prepare("SELECT COUNT(*) as total FROM users").first<{ total: number }>();
+  const totalUsers = countRow?.total ?? "?";
+
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "OBX-STUDIO <noreply@obx-studio.dev>",
+      to: adminEmail,
+      subject: `🎉 New user signed up: ${userEmail}`,
+      html: `
+        <p><strong>New user joined OBX-STUDIO!</strong></p>
+        <p>Email: ${userEmail}</p>
+        <p>User ID: ${userId}</p>
+        <p>Timestamp: ${new Date().toISOString()}</p>
+        <p>Total users now: ${totalUsers}</p>
+      `,
+    }),
+  });
 }

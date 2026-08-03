@@ -41,13 +41,19 @@ export const api = {
     stats: () => apiFetch<UserStats>("/user/stats"),
     updateSettings: (body: { openrouter_key?: string; openrouter_model?: string; theme_accent?: string }) =>
       apiFetch<{ ok: boolean }>("/user/settings", { method: "PATCH", body: JSON.stringify(body) }),
+    deleteAccount: () => apiFetch<{ ok: boolean }>("/user", { method: "DELETE" }),
+    exportData: async () => {
+      const token = await getToken();
+      const headers: Record<string, string> = { ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+      return fetch(`${BASE}/user/export`, { headers });
+    },
   },
 
   interview: {
-    create: (personaId: string) =>
+    create: (personaId: string, template_id?: string) =>
       apiFetch<{ id: string }>("/interview", {
         method: "POST",
-        body: JSON.stringify({ personaId }),
+        body: JSON.stringify({ personaId, template_id }),
       }),
     list: () => apiFetch<Interview[]>("/interview"),
     get: (id: string) => apiFetch<InterviewWithMessages>(`/interview/${id}`),
@@ -58,11 +64,18 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ title }),
       }),
+    duplicate: (id: string) =>
+      apiFetch<{ id: string }>(`/interview/${id}/duplicate`, { method: "POST" }),
+    saveCanvas: (id: string, nodes: any[], links: any[]) =>
+      apiFetch<{ ok: boolean }>(`/interview/${id}/canvas`, {
+        method: "PATCH",
+        body: JSON.stringify({ nodes, links }),
+      }),
     /**
      * Send a user message and get a streaming SSE response back.
      * Returns a ReadableStream.
      */
-    sendMessage: async (id: string, content: string, canvasState?: { nodes: any[], edges: any[] }): Promise<Response> => {
+    sendMessage: async (id: string, content: string, canvasState?: { nodes: any[], links?: any[] }): Promise<Response> => {
       const token = await getToken();
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -84,6 +97,10 @@ export const api = {
       }),
     list: (interviewId: string) =>
       apiFetch<Output[]>(`/output/${interviewId}`),
+    share: (outputId: string) =>
+      apiFetch<{ ok: boolean; url: string }>(`/output/${outputId}/share`, { method: "POST" }),
+    getPublic: (outputId: string) =>
+      fetch(`${BASE}/public/share/${outputId}`).then((r) => r.json()),
   },
 
   kanban: {
