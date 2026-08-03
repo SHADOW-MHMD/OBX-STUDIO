@@ -317,12 +317,13 @@ interviewRoutes.patch("/:id/canvas", requireAuth, async (c) => {
 
   if (!interview) return c.json({ error: "Not found" }, 404);
 
-  const { nodes, edges } = await c.req.json<{ nodes: any[]; edges: any[] }>();
+  const body = await c.req.json<{ nodes: any[]; edges?: any[]; links?: any[] }>();
+  const edges = body.edges ?? body.links ?? [];
 
   await c.env.DB.prepare(
     `UPDATE interviews SET canvas_state = ?, updated_at = datetime('now') WHERE id = ?`
   )
-    .bind(JSON.stringify({ nodes, edges }), id)
+    .bind(JSON.stringify({ nodes: body.nodes, edges }), id)
     .run();
 
   return c.json({ ok: true });

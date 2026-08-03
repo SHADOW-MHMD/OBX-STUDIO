@@ -66,10 +66,10 @@ export const api = {
       }),
     duplicate: (id: string) =>
       apiFetch<{ id: string }>(`/interview/${id}/duplicate`, { method: "POST" }),
-    saveCanvas: (id: string, nodes: any[], links: any[]) =>
+    saveCanvas: (id: string, nodes: any[], edges: any[]) =>
       apiFetch<{ ok: boolean }>(`/interview/${id}/canvas`, {
-        method: "PATCH",
-        body: JSON.stringify({ nodes, links }),
+        method: 'PATCH',
+        body: JSON.stringify({ nodes, edges }),
       }),
     /**
      * Send a user message and get a streaming SSE response back.

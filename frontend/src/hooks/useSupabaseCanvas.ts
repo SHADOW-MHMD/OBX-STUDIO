@@ -2,26 +2,61 @@ import { useEffect, useCallback, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { api } from '@/lib/api';
-import type { Node3D, Link3D } from '@/components/canvas/NeuralCanvas';
+import type { Node2D, Link2D } from '@/components/canvas/NeuralCanvas';
 
-export function useSupabaseCanvas(interviewId: string | undefined, initialNodes: Node3D[], initialLinks: Link3D[]) {
-  const [nodes, setNodes] = useState<Node3D[]>(initialNodes || []);
-  const [links, setLinks] = useState<Link3D[]>(initialLinks || []);
-  
+export function useSupabaseCanvas(
+  interviewId: string | undefined,
+  initialNodes: Node2D[],
+  initialLinks: Link2D[]
+) {
+  const [nodes, setNodes] = useState<Node2D[]>(initialNodes || []);
+  const [links, setLinks] = useState<Link2D[]>(initialLinks || []);
+
   const supabase = createClient();
   const channelRef = useRef<RealtimeChannel | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadedRef = useRef(false);
 
+  // ─── Load persisted canvas from D1 on mount ────────────────────────────────
+  useEffect(() => {
+    if (!interviewId || loadedRef.current) return;
+    loadedRef.current = true;
+
+    api.interview
+      .get(interviewId)
+      .then((data) => {
+        const raw = (data.interview as any).canvas_state;
+        if (!raw) return;
+        try {
+          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          if (parsed?.nodes?.length) {
+            setNodes(parsed.nodes as Node2D[]);
+          }
+          if (parsed?.edges?.length) {
+            setLinks(parsed.edges as Link2D[]);
+          } else if (parsed?.links?.length) {
+            // backward compat: backend used to store as 'links'
+            setLinks(parsed.links as Link2D[]);
+          }
+        } catch {
+          // corrupt canvas_state — ignore, start fresh
+        }
+      })
+      .catch(() => {
+        // fail silently — canvas just starts fresh
+      });
+  }, [interviewId]);
+
+  // ─── Supabase real-time broadcast (for future multi-user collaboration) ────
   useEffect(() => {
     if (!interviewId) return;
 
-    // Subscribe to graph changes
-    const channel = supabase.channel(`canvas-${interviewId}`)
+    const channel = supabase
+      .channel(`canvas-${interviewId}`)
       .on('broadcast', { event: 'graph-update' }, (payload) => {
-        if (payload.payload) {
-          if (payload.payload.nodes) setNodes(payload.payload.nodes);
-          if (payload.payload.links) setLinks(payload.payload.links);
-        }
+        // Only apply remote updates — local updates go through updateGraph()
+        if (payload.payload?.nodes) setNodes(payload.payload.nodes);
+        if (payload.payload?.links) setLinks(payload.payload.links);
       })
       .subscribe();
 
@@ -33,28 +68,38 @@ export function useSupabaseCanvas(interviewId: string | undefined, initialNodes:
     };
   }, [interviewId, supabase]);
 
-  const saveCanvasToDb = useCallback((currentNodes: Node3D[], currentLinks: Link3D[]) => {
-    if (!interviewId) return;
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      // Assuming api.interview.saveCanvas can handle any array format for nodes/edges
-      api.interview.saveCanvas(interviewId, currentNodes as any, currentLinks as any).catch(() => {
-        // Fail silently
-      });
-    }, 500);
-  }, [interviewId]);
+  // ─── Debounced D1 persistence ─────────────────────────────────────────────
+  const saveCanvasToDb = useCallback(
+    (currentNodes: Node2D[], currentLinks: Link2D[]) => {
+      if (!interviewId) return;
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        api.interview
+          .saveCanvas(interviewId, currentNodes as any, currentLinks as any)
+          .catch(() => {
+            // Fail silently
+          });
+      }, 500);
+    },
+    [interviewId]
+  );
 
-  const updateGraph = useCallback((newNodes: Node3D[], newLinks: Link3D[]) => {
-    setNodes(newNodes);
-    setLinks(newLinks);
-    saveCanvasToDb(newNodes, newLinks);
-    
-    channelRef.current?.send({
-      type: 'broadcast',
-      event: 'graph-update',
-      payload: { nodes: newNodes, links: newLinks },
-    });
-  }, [saveCanvasToDb]);
+  // ─── updateGraph: mutate state + broadcast + persist ─────────────────────
+  const updateGraph = useCallback(
+    (newNodes: Node2D[], newLinks: Link2D[]) => {
+      setNodes(newNodes);
+      setLinks(newLinks);
+      saveCanvasToDb(newNodes, newLinks);
+
+      // Broadcast to other tabs/collaborators via Supabase real-time
+      channelRef.current?.send({
+        type: 'broadcast',
+        event: 'graph-update',
+        payload: { nodes: newNodes, links: newLinks },
+      });
+    },
+    [saveCanvasToDb]
+  );
 
   return {
     nodes,
