@@ -14,7 +14,8 @@ export interface ChatMessage {
 export async function streamChatCompletion(
   messages: ChatMessage[],
   apiKey: string,
-  model = MODEL
+  model = MODEL,
+  maxTokens = 900
 ): Promise<ReadableStream> {
   const res = await fetch(`${API_BASE}/chat/completions`, {
     method: "POST",
@@ -27,7 +28,7 @@ export async function streamChatCompletion(
       model,
       messages,
       stream: true,
-      max_tokens: 2048,
+      max_tokens: maxTokens,
     }),
   });
 

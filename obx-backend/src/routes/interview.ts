@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { requireAuth } from "../middleware/auth";
 import { streamChatCompletion } from "../lib/openrouter";
-import { getInterviewSystemPrompt } from "../lib/prompts";
+import { getInterviewSystemPrompt, getPhaseFromMessageCount } from "../lib/prompts";
 import type { Env } from "../types/env";
 import type { DbUser, DbMessage, DbTemplate } from "../types/db";
 import { nanoid } from "../lib/nanoid";
@@ -122,7 +122,7 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
     return c.json({ error: "Interview already completed" }, 400);
   }
 
-  const { content, canvasState } = await c.req.json<{ content: string, canvasState?: any }>();
+  const { content, canvasState, mode } = await c.req.json<{ content: string, canvasState?: any, mode?: 'deep' | 'quick' }>();
   if (!content?.trim()) return c.json({ error: "Empty message" }, 400);
 
   // Save user message
@@ -153,13 +153,30 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
   // Retrieve persona to update system prompt dynamically for this turn
   const personaId = (interview as any).persona || "pm";
 
-  // C3: Handle [SKIP] and [REASK] special tokens
-  let systemPromptOverride = getInterviewSystemPrompt(personaId, isHeavyTurn);
+  // Derive current phase from message count
+  const { phase, phaseIndex, questionInPhase } = getPhaseFromMessageCount(
+    Math.max(0, totalUserMessages - 1)
+  );
+
+  // Build system prompt with phase context
+  let systemPromptOverride = getInterviewSystemPrompt(
+    personaId,
+    isHeavyTurn,
+    phase,
+    phaseIndex,
+    questionInPhase,
+    mode || 'deep'
+  );
+
+  // Handle special tokens
   if (content.includes("[SKIP]")) {
-    systemPromptOverride += "\n\nIMPORTANT: The user wants to skip this question. Acknowledge briefly and move to the next topic immediately.";
+    systemPromptOverride += "\n\nSPECIAL: The user wants to skip this question. Acknowledge briefly in 'statement' and move to the next interview question immediately.";
   }
   if (content.includes("[REASK]")) {
-    systemPromptOverride += "\n\nIMPORTANT: The user wants the question rephrased. Ask the same question using completely different wording and a fresh angle.";
+    systemPromptOverride += "\n\nSPECIAL: The user wants the question rephrased. Ask the exact same question using completely different wording and a fresh angle.";
+  }
+  if (content.includes("[REGENERATE]")) {
+    systemPromptOverride += "\n\nSPECIAL: The user wants a different question on the same topic. Generate a fresh question for the current phase — different angle, same goal. Do not repeat the previous question.";
   }
 
   const systemMessageIndex = allMessages.results.findIndex(m => m.role === "system");
@@ -206,7 +223,8 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
     stream = await streamChatCompletion(
       allMessages.results as any,
       openRouterKey,
-      openRouterModel
+      openRouterModel,
+      900  // cap interview turns — prevents runaway document generation
     );
   } catch (error: any) {
     return c.json({ error: "Failed to communicate with AI", details: error.message }, 500);
