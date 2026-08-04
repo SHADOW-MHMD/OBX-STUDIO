@@ -536,6 +536,24 @@ export default function InterviewPage() {
                     name: n.name || n.label || n.data?.label || nodeId,
                     category: n.category ?? (n.type === 'persona' ? 'persona' : n.type === 'task' ? 'feature' : 'default'),
                   });
+                  // Auto-create edge from parent_id (no separate add_edge needed)
+                  const parentId = n.parent_id;
+                  if (parentId && newNodes.some((ex) => ex.id === parentId)) {
+                    const edgeExists = newLinks.some(
+                      (l) =>
+                        (l.source === parentId || (l.source as any)?.id === parentId) &&
+                        (l.target === nodeId || (l.target as any)?.id === nodeId)
+                    );
+                    if (!edgeExists) newLinks.push({ source: parentId, target: nodeId });
+                  } else if (!n.parent_id) {
+                    // Fallback: if no parent_id given, connect to 'idea' root
+                    const rootExists = newLinks.some(
+                      (l) =>
+                        (l.source === 'idea' || (l.source as any)?.id === 'idea') &&
+                        (l.target === nodeId || (l.target as any)?.id === nodeId)
+                    );
+                    if (!rootExists && nodeId !== 'idea') newLinks.push({ source: 'idea', target: nodeId });
+                  }
                 }
               } else if (update.action === 'add_edge' && update.edge) {
                 const sid = update.edge.source;
@@ -547,6 +565,24 @@ export default function InterviewPage() {
                     (l.target === tid || (l.target as any)?.id === tid)
                 );
                 if (!exists) newLinks.push({ source: sid, target: tid, label: update.edge.label });
+              } else if (update.action === 'delete_node' && update.node_id) {
+                const delId = update.node_id;
+                if (delId !== 'idea') { // never delete root
+                  newNodes = newNodes.filter((n) => n.id !== delId);
+                  newLinks = newLinks.filter(
+                    (l) =>
+                      (l.source !== delId && (l.source as any)?.id !== delId) &&
+                      (l.target !== delId && (l.target as any)?.id !== delId)
+                  );
+                }
+              } else if (update.action === 'delete_edge' && update.source && update.target) {
+                newLinks = newLinks.filter(
+                  (l) =>
+                    !(
+                      (l.source === update.source || (l.source as any)?.id === update.source) &&
+                      (l.target === update.target || (l.target as any)?.id === update.target)
+                    )
+                );
               } else if (update.action === 'update_node' && update.node) {
                 newNodes = newNodes.map((n) =>
                   n.id === update.node.id
@@ -573,6 +609,17 @@ export default function InterviewPage() {
       inputRef.current?.focus();
     }
   }, [inputValue, sending, isDone, id, nodes, links, focusedNode, mode, updateGraph]);
+
+  const handleNodeDelete = useCallback((node: Node2D) => {
+    if (node.id === 'idea') return; // protect root
+    const newNodes = nodes.filter((n) => n.id !== node.id);
+    const newLinks = links.filter(
+      (l) =>
+        (l.source !== node.id && (l.source as any)?.id !== node.id) &&
+        (l.target !== node.id && (l.target as any)?.id !== node.id)
+    );
+    updateGraph(newNodes, newLinks);
+  }, [nodes, links, updateGraph]);
 
   const handleOptionClick = useCallback((opt: string) => {
     setInputValue((prev) => {
@@ -643,6 +690,7 @@ export default function InterviewPage() {
               setFocusedNode(node);
               inputRef.current?.focus();
             }}
+            onNodeDelete={handleNodeDelete}
           />
           <CanvasOverlay nodeCount={nodes.length} linkCount={links.length} />
         </div>

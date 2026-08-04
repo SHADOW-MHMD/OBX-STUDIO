@@ -54,6 +54,7 @@ interface NeuralCanvasProps {
   nodes: Node2D[];
   links: Link2D[];
   onNodeClick?: (node: Node2D) => void;
+  onNodeDelete?: (node: Node2D) => void;
 }
 
 // ─── Color palette ────────────────────────────────────────────────────────────
@@ -84,6 +85,7 @@ export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
   nodes,
   links,
   onNodeClick,
+  onNodeDelete,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -110,6 +112,16 @@ export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
       counts[tid] = (counts[tid] ?? 0) + 1;
     });
     return counts;
+  }, [nodes, links]);
+
+  // Orphan node ids (connected to nothing, excluding root 'idea')
+  const orphanIds = useMemo(() => {
+    const connected = new Set<string>();
+    links.forEach((l) => {
+      connected.add(typeof l.source === 'string' ? l.source : l.source.id);
+      connected.add(typeof l.target === 'string' ? l.target : l.target.id);
+    });
+    return new Set(nodes.filter((n) => n.id !== 'idea' && !connected.has(n.id)).map((n) => n.id));
   }, [nodes, links]);
 
   // Connected node ids for dimming on select
@@ -357,6 +369,21 @@ export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
           ctx!.globalAlpha = 1;
         }
 
+        // Orphan alert: soft pulsing red ring for disconnected nodes
+        if (orphanIds.has(node.id) && !isDimmed) {
+          const orphanPulse = displayR + 5 + Math.sin(frameRef.current * 0.025) * 2.5;
+          ctx!.beginPath();
+          ctx!.arc(node.x!, node.y!, orphanPulse, 0, Math.PI * 2);
+          ctx!.strokeStyle = '#f87171';
+          ctx!.lineWidth = 1.2;
+          ctx!.globalAlpha = 0.25 + Math.sin(frameRef.current * 0.025) * 0.15;
+          ctx!.shadowBlur = 8;
+          ctx!.shadowColor = '#f87171';
+          ctx!.stroke();
+          ctx!.shadowBlur = 0;
+          ctx!.globalAlpha = 1;
+        }
+
         // Labels (only when zoomed in)
         if (showLabels) {
           ctx!.globalAlpha = isDimmed ? 0.15 : Math.min(1, (k - 1.3) * 3);
@@ -378,7 +405,7 @@ export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
     draw();
     return () => cancelAnimationFrame(rafRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dimensions, connectionCount, connectedToSelected]);
+  }, [dimensions, connectionCount, connectedToSelected, orphanIds]);
 
   // ─── D3 Zoom ────────────────────────────────────────────────────────────────
 
@@ -514,7 +541,7 @@ export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
     if (!popoverPos || !containerRef.current) return { display: 'none' };
     const { w, h } = dimensions;
     const popW = 240;
-    const popH = 180;
+    const popH = 220; // taller now for delete button
     let left = popoverPos.x + 16;
     let top = popoverPos.y - popH / 2;
 
@@ -614,12 +641,42 @@ export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'background 0.15s',
+                marginBottom: '0.35rem',
               }}
               onMouseEnter={(e) => { (e.target as HTMLButtonElement).style.background = `${getNodeColor(selectedNode)}30`; }}
               onMouseLeave={(e) => { (e.target as HTMLButtonElement).style.background = `${getNodeColor(selectedNode)}18`; }}
             >
               Ask AI about this →
             </button>
+
+            {/* Delete node button */}
+            {selectedNode.id !== 'idea' && onNodeDelete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onNodeDelete(selectedNode);
+                  setSelectedNode(null);
+                  setPopoverPos(null);
+                  selectedNodeRef.current = null;
+                }}
+                style={{
+                  width: '100%',
+                  padding: '0.35rem 0',
+                  background: 'rgba(248,113,113,0.06)',
+                  border: '1px solid rgba(248,113,113,0.2)',
+                  borderRadius: 8,
+                  color: '#f87171',
+                  fontSize: '0.72rem',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={(e) => { (e.target as HTMLButtonElement).style.background = 'rgba(248,113,113,0.14)'; }}
+                onMouseLeave={(e) => { (e.target as HTMLButtonElement).style.background = 'rgba(248,113,113,0.06)'; }}
+              >
+                🗑 Remove node
+              </button>
+            )}
 
             {/* Close */}
             <button

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { requireAuth } from "../middleware/auth";
 import { streamChatCompletion } from "../lib/openrouter";
-import { getInterviewSystemPrompt, getPhaseFromMessageCount } from "../lib/prompts";
+import { getInterviewSystemPrompt, getPhaseFromMessageCount, buildCanvasMemoryMessage } from "../lib/prompts";
 import type { Env } from "../types/env";
 import type { DbUser, DbMessage, DbTemplate } from "../types/db";
 import { nanoid } from "../lib/nanoid";
@@ -184,24 +184,34 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
     allMessages.results[systemMessageIndex].content = systemPromptOverride;
   }
 
-  // Inject the canvasState into the very last user message in memory (so the AI can read it)
-  if (canvasState && allMessages.results.length > 0) {
-    const lastMsg = allMessages.results[allMessages.results.length - 1];
-    if (lastMsg.role === 'user') {
-      const rawEdges = canvasState.edges ?? canvasState.links ?? [];
-      const strippedCanvas = {
-        nodes: canvasState.nodes?.map((n: any) => ({
-          id: n.id,
-          name: n.name || n.label || n.data?.label || n.id,
-          category: n.category ?? n.type ?? 'default',
-        })),
-        edges: rawEdges.map((e: any) => ({
-          source: typeof e.source === 'string' ? e.source : e.source?.id,
-          target: typeof e.target === 'string' ? e.target : e.target?.id,
-          label: e.label,
-        })),
-      };
-      lastMsg.content = `${lastMsg.content}\n\n[Current Neural Canvas State:\n${JSON.stringify(strippedCanvas)}]`;
+  // Inject canvas state as a dedicated CANVAS MEMORY system message (position 1 in message array)
+  // This gives the AI a clean, structured memory snapshot without polluting user messages.
+  if (canvasState) {
+    const rawEdges = canvasState.edges ?? canvasState.links ?? [];
+    const normalizedNodes = (canvasState.nodes ?? []).map((n: any) => ({
+      id: n.id,
+      name: n.name || n.label || n.data?.label || n.id,
+      category: n.category ?? n.type ?? 'default',
+    }));
+    const normalizedEdges = rawEdges.map((e: any) => ({
+      source: typeof e.source === 'string' ? e.source : e.source?.id,
+      target: typeof e.target === 'string' ? e.target : e.target?.id,
+      label: e.label,
+    })).filter((e: any) => e.source && e.target);
+
+    const canvasMemoryContent = buildCanvasMemoryMessage(
+      normalizedNodes,
+      normalizedEdges,
+      totalUserMessages
+    );
+
+    const canvasMemoryMsg = { id: 'canvas-memory', role: 'system' as const, content: canvasMemoryContent };
+
+    // Insert canvas memory right after the main system prompt (index 1)
+    if (systemMessageIndex !== -1) {
+      allMessages.results.splice(systemMessageIndex + 1, 0, canvasMemoryMsg);
+    } else {
+      allMessages.results.unshift(canvasMemoryMsg);
     }
   }
 
