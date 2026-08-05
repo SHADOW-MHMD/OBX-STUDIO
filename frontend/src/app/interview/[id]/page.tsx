@@ -545,26 +545,21 @@ export default function InterviewPage() {
                         (l.target === nodeId || (l.target as any)?.id === nodeId)
                     );
                     if (!edgeExists) newLinks.push({ source: parentId, target: nodeId });
-                  } else if (!n.parent_id) {
-                    // Fallback: if no parent_id given, connect to 'idea' root
-                    const rootExists = newLinks.some(
-                      (l) =>
-                        (l.source === 'idea' || (l.source as any)?.id === 'idea') &&
-                        (l.target === nodeId || (l.target as any)?.id === nodeId)
-                    );
-                    if (!rootExists && nodeId !== 'idea') newLinks.push({ source: 'idea', target: nodeId });
                   }
+                  // If no parent_id provided, leave as orphan — the red pulse alert + AI notice handles it
                 }
-              } else if (update.action === 'add_edge' && update.edge) {
-                const sid = update.edge.source;
-                const tid = update.edge.target;
+              } else if (update.action === 'add_edge') {
+                // AI emits: { action: 'add_edge', source: 'a', target: 'b', label: '...' }
+                // (source/target are top-level, NOT nested inside update.edge)
+                const sid = update.source ?? update.edge?.source;
+                const tid = update.target ?? update.edge?.target;
                 if (!sid || !tid) return;
                 const exists = newLinks.some(
                   (l) =>
                     (l.source === sid || (l.source as any)?.id === sid) &&
                     (l.target === tid || (l.target as any)?.id === tid)
                 );
-                if (!exists) newLinks.push({ source: sid, target: tid, label: update.edge.label });
+                if (!exists) newLinks.push({ source: sid, target: tid, label: update.label ?? update.edge?.label });
               } else if (update.action === 'delete_node' && update.node_id) {
                 const delId = update.node_id;
                 if (delId !== 'idea') { // never delete root

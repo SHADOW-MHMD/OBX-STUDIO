@@ -254,21 +254,22 @@ export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
         ctx!.moveTo(s.x!, s.y!);
         ctx!.lineTo(t.x!, t.y!);
         ctx!.strokeStyle = srcColor;
-        ctx!.lineWidth = 1.2;
+        // Divide by k so the line stays exactly 1.2px on screen at any zoom level
+        ctx!.lineWidth = 1.2 / k;
         ctx!.globalAlpha = alpha;
-        ctx!.shadowBlur = isConnected ? 10 : 0;
+        ctx!.shadowBlur = isConnected ? 10 / k : 0;
         ctx!.shadowColor = srcColor;
         ctx!.stroke();
         ctx!.shadowBlur = 0;
         ctx!.globalAlpha = 1;
 
-        // Directional particle along edge
+        // Directional particle along edge (zoom-invariant radius)
         if (isConnected) {
           const t_pos = ((frameRef.current * 0.004) % 1);
           const px = s.x! + (t.x! - s.x!) * t_pos;
           const py = s.y! + (t.y! - s.y!) * t_pos;
           ctx!.beginPath();
-          ctx!.arc(px, py, 1.5, 0, Math.PI * 2);
+          ctx!.arc(px, py, 1.5 / k, 0, Math.PI * 2);
           ctx!.fillStyle = srcColor;
           ctx!.globalAlpha = 0.8;
           ctx!.fill();
