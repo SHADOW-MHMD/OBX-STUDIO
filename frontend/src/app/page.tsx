@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useAuthStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
   Cpu,
   ArrowRight,
-  Zap,
-  FileText,
-  Kanban,
-  Lock,
+  FileCode,
+  Mic,
+  Key,
+  Network,
+  MessageSquareWarning,
+  Github,
   ChevronRight,
   Sparkles,
   Check,
@@ -80,24 +81,34 @@ const GLOBAL_STYLES = `
 /* ─── Data ─── */
 const FEATURES = [
   {
-    icon: Zap,
-    title: "AI Interview Engine",
-    desc: "Answers one smart question at a time — like a senior PM extracting your idea from your brain.",
+    icon: Mic,
+    title: "Voice-Native Edge AI",
+    desc: "Speak your ideas naturally. Zero-latency transcription powered by Cloudflare Workers AI (Whisper).",
   },
   {
-    icon: FileText,
-    title: "Instant Spec Docs",
-    desc: "Choose your output: full PRD, bullet summary, phased roadmap, or tech architecture plan.",
+    icon: FileCode,
+    title: "Agent-Ready Specs",
+    desc: "Outputs structured JSON/MD specification documents perfectly formatted for Cursor, v0, and Bolt.",
   },
   {
-    icon: Kanban,
-    title: "Auto Kanban Board",
-    desc: "AI breaks your idea into tasks and populates a drag-and-drop board. Ready to ship.",
+    icon: Key,
+    title: "Bring Your Own Key",
+    desc: "100% free to host. Just drop in your OpenRouter key and pick any model (like Nemotron or Claude 3.5 Sonnet).",
   },
   {
-    icon: Lock,
-    title: "Yours Forever",
-    desc: "Sessions saved to your account. Export .md or .pdf. No lock-in.",
+    icon: Network,
+    title: "Interactive 2D Canvas",
+    desc: "Watch your app idea map itself out in real-time as interconnected nodes, pain points, and features.",
+  },
+  {
+    icon: MessageSquareWarning,
+    title: "AI Pushback & Interview",
+    desc: "The AI acts like a Senior Staff Engineer, finding holes in your architecture before you ever write code.",
+  },
+  {
+    icon: Github,
+    title: "100% Open Source",
+    desc: "Deploy the entire stack yourself on Cloudflare Pages and Workers. No vendor lock-in.",
   },
 ];
 
@@ -301,9 +312,8 @@ export default function LandingPage() {
         {/* ── Hero ── */}
         <section
           style={{
-            paddingTop: "calc(56px + 6rem)",
+            paddingTop: "calc(56px + 4rem)",
             paddingBottom: "6rem",
-            textAlign: "center",
             position: "relative",
             overflow: "hidden",
           }}
@@ -316,79 +326,182 @@ export default function LandingPage() {
               backgroundImage:
                 "linear-gradient(#111 1px, transparent 1px), linear-gradient(90deg, #111 1px, transparent 1px)",
               backgroundSize: "60px 60px",
-              maskImage: "radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 100%)",
+              maskImage: "radial-gradient(ellipse 90% 90% at 50% 0%, black 40%, transparent 100%)",
               WebkitMaskImage:
-                "radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 100%)",
+                "radial-gradient(ellipse 90% 90% at 50% 0%, black 40%, transparent 100%)",
             }}
           />
 
-          <div style={{ position: "relative", maxWidth: 720, margin: "0 auto", padding: "0 2rem" }}>
-            {/* Badge */}
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                background: "#0f0f0f",
-                border: "1px solid #222",
-                borderRadius: 999,
-                padding: "0.35rem 0.9rem",
-                fontSize: "0.78rem",
-                color: "#888",
-                marginBottom: "2rem",
-              }}
-            >
-              <Sparkles size={12} color="#fff" />
-              <span style={{ color: "#fff" }}>Free while in beta</span>
-              <span>·</span>
-              <span>3 ideas/day</span>
+          <div
+            style={{
+              position: "relative",
+              maxWidth: 1200,
+              margin: "0 auto",
+              padding: "0 2rem",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+              gap: "4rem",
+              alignItems: "center",
+            }}
+          >
+            {/* Left side: Copy & CTAs */}
+            <div className="fade-in-up" style={{ textAlign: "left" }}>
+              {/* Badge */}
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  background: "#0f0f0f",
+                  border: "1px solid #222",
+                  borderRadius: 999,
+                  padding: "0.35rem 0.9rem",
+                  fontSize: "0.78rem",
+                  color: "#888",
+                  marginBottom: "2rem",
+                }}
+              >
+                <Sparkles size={12} color="#fff" />
+                <span style={{ color: "#fff" }}>Open Source & BYOK</span>
+              </div>
+
+              <h1
+                style={{
+                  fontSize: "clamp(2.5rem, 5vw, 4rem)",
+                  fontWeight: 800,
+                  letterSpacing: "-0.04em",
+                  lineHeight: 1.1,
+                  marginBottom: "1.5rem",
+                }}
+              >
+                Plan apps like a{" "}
+                <span className="animated-gradient-text">Senior Engineer</span>.
+              </h1>
+
+              <p
+                style={{
+                  fontSize: "1.15rem",
+                  color: "#888",
+                  lineHeight: 1.6,
+                  marginBottom: "2.5rem",
+                  maxWidth: 500,
+                }}
+              >
+                Generate agent-ready specs in minutes. OBX-STUDIO grills you with smart AI questions, maps your ideas to a Neural Canvas, and outputs structured PRDs ready for Cursor, v0, and Bolt.
+              </p>
+
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+                <Link
+                  href="/auth/login"
+                  className="btn btn-primary"
+                  style={{ padding: "0.75rem 1.5rem", fontSize: "0.95rem", gap: "0.5rem" }}
+                >
+                  Start Planning (Free)
+                  <ArrowRight size={16} />
+                </Link>
+                <Link
+                  href="/auth/login"
+                  className="btn btn-secondary"
+                  style={{ padding: "0.75rem 1.5rem", fontSize: "0.95rem" }}
+                >
+                  Bring Your Own Key
+                </Link>
+                <a
+                  href="#demo"
+                  style={{
+                    padding: "0.75rem 1.5rem",
+                    fontSize: "0.95rem",
+                    color: "#aaa",
+                    border: "1px solid #333",
+                    borderRadius: 8,
+                    textDecoration: "none",
+                    background: "rgba(255,255,255,0.03)",
+                    transition: "all 0.15s ease"
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "#fff"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.color = "#aaa"; }}
+                >
+                  View Demo
+                </a>
+              </div>
             </div>
 
-            <h1
+            {/* Right side: Neural Canvas SVG Preview */}
+            <div
+              className="fade-in-up"
               style={{
-                fontSize: "clamp(2.5rem, 6vw, 4.5rem)",
-                fontWeight: 800,
-                letterSpacing: "-0.04em",
-                lineHeight: 1.1,
-                marginBottom: "1.5rem",
+                position: "relative",
+                width: "100%",
+                height: 400,
+                animationDelay: "150ms",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              Turn your half-baked{" "}
-              <span className="animated-gradient-text">idea</span>{" "}
-              into a full spec.
-            </h1>
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "radial-gradient(circle at center, rgba(34, 197, 94, 0.08) 0%, transparent 70%)",
+                  filter: "blur(40px)",
+                  zIndex: 0,
+                }}
+              />
+              <svg width="100%" height="100%" viewBox="0 0 500 400" style={{ overflow: 'visible', zIndex: 1 }}>
+                <defs>
+                  <linearGradient id="edgeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#22c55e" stopOpacity="0.4" />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.4" />
+                  </linearGradient>
+                  <filter id="glow">
+                    <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                    <feMerge>
+                      <feMergeNode in="coloredBlur"/>
+                      <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                  </filter>
+                </defs>
+                
+                {/* Edges */}
+                <line x1="250" y1="200" x2="120" y2="100" stroke="url(#edgeGradient)" strokeWidth="2" />
+                <line x1="250" y1="200" x2="380" y2="100" stroke="url(#edgeGradient)" strokeWidth="2" />
+                <line x1="250" y1="200" x2="150" y2="300" stroke="url(#edgeGradient)" strokeWidth="2" />
+                <line x1="250" y1="200" x2="350" y2="300" stroke="url(#edgeGradient)" strokeWidth="2" />
+                
+                <line x1="120" y1="100" x2="80" y2="160" stroke="#333" strokeWidth="1.5" strokeDasharray="4 4" />
+                <line x1="380" y1="100" x2="420" y2="160" stroke="#333" strokeWidth="1.5" strokeDasharray="4 4" />
 
-            <p
-              style={{
-                fontSize: "1.15rem",
-                color: "#666",
-                lineHeight: 1.7,
-                marginBottom: "2.5rem",
-                maxWidth: 520,
-                margin: "0 auto 2.5rem",
-              }}
-            >
-              OBX-STUDIO grills you about your app idea with smart AI questions,
-              then generates a PRD, roadmap, and a kanban board — ready to start building.
-            </p>
+                {/* Nodes */}
+                {/* Idea Node (Center) */}
+                <circle cx="250" cy="200" r="8" fill="#fff" filter="url(#glow)" />
+                <rect x="215" y="215" width="70" height="26" rx="6" fill="#000" stroke="#fff" strokeWidth="1" />
+                <text x="250" y="232" fill="#fff" fontSize="12" fontWeight="600" textAnchor="middle">Idea</text>
 
-            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
-              <Link
-                href="/auth/login"
-                className="btn btn-primary"
-                style={{ padding: "0.75rem 1.5rem", fontSize: "0.95rem", gap: "0.5rem" }}
-              >
-                Start for free
-                <ArrowRight size={16} />
-              </Link>
-              <a
-                href="https://github.com/SHADOW-MHMD/OBX-STUDIO"
-                target="_blank"
-                rel="noreferrer"
-                className="btn btn-secondary"
-              >
-                Star on GitHub
-              </a>
+                {/* Persona Node */}
+                <circle cx="120" cy="100" r="6" fill="#3b82f6" filter="url(#glow)" />
+                <rect x="85" y="65" width="70" height="22" rx="4" fill="#000" stroke="#3b82f6" strokeWidth="1" />
+                <text x="120" y="80" fill="#3b82f6" fontSize="10" fontWeight="600" textAnchor="middle">Persona</text>
+
+                {/* Feature Node 1 */}
+                <circle cx="380" cy="100" r="6" fill="#22c55e" filter="url(#glow)" />
+                <rect x="345" y="65" width="70" height="22" rx="4" fill="#000" stroke="#22c55e" strokeWidth="1" />
+                <text x="380" y="80" fill="#22c55e" fontSize="10" fontWeight="600" textAnchor="middle">Auth</text>
+
+                {/* Feature Node 2 */}
+                <circle cx="150" cy="300" r="6" fill="#22c55e" filter="url(#glow)" />
+                <rect x="115" y="315" width="70" height="22" rx="4" fill="#000" stroke="#22c55e" strokeWidth="1" />
+                <text x="150" y="330" fill="#22c55e" fontSize="10" fontWeight="600" textAnchor="middle">Database</text>
+
+                {/* Market Node */}
+                <circle cx="350" cy="300" r="6" fill="#eab308" filter="url(#glow)" />
+                <rect x="315" y="315" width="70" height="22" rx="4" fill="#000" stroke="#eab308" strokeWidth="1" />
+                <text x="350" y="330" fill="#eab308" fontSize="10" fontWeight="600" textAnchor="middle">SaaS</text>
+
+                {/* Sub-nodes */}
+                <circle cx="80" cy="160" r="4" fill="#a855f7" />
+                <circle cx="420" cy="160" r="4" fill="#a855f7" />
+              </svg>
             </div>
           </div>
         </section>
@@ -453,7 +566,7 @@ export default function LandingPage() {
         </section>
 
         {/* ── Demo Terminal ── */}
-        <section style={{ padding: "5rem 2rem", maxWidth: 1100, margin: "0 auto" }}>
+        <section id="demo" style={{ padding: "5rem 2rem", maxWidth: 1100, margin: "0 auto" }}>
           <p
             style={{
               fontSize: "0.75rem",
