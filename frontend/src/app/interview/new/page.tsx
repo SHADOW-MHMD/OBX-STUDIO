@@ -15,10 +15,10 @@ const PERSONAS = [
 ];
 
 const TEMPLATES = [
-  { id: 'saas', name: 'SaaS Product', desc: 'B2B software with subscription model', icon: <FileText size={22} color="var(--theme-accent, #06b6d4)" /> },
-  { id: 'consumer', name: 'Consumer App', desc: 'Direct-to-consumer mobile or web app', icon: <Smartphone size={22} color="var(--theme-accent, #06b6d4)" /> },
-  { id: 'marketplace', name: 'Marketplace', desc: 'Two-sided marketplace connecting buyers and sellers', icon: <Store size={22} color="var(--theme-accent, #06b6d4)" /> },
-  { id: 'internal', name: 'Internal Tool', desc: 'Internal tooling or developer productivity', icon: <Wrench size={22} color="var(--theme-accent, #06b6d4)" /> },
+  { id: 'system-saas', name: 'SaaS Product', desc: 'B2B software with subscription model', icon: <FileText size={22} color="var(--theme-accent, #06b6d4)" /> },
+  { id: 'system-consumer', name: 'Consumer App', desc: 'Direct-to-consumer mobile or web app', icon: <Smartphone size={22} color="var(--theme-accent, #06b6d4)" /> },
+  { id: 'system-marketplace', name: 'Marketplace', desc: 'Two-sided marketplace connecting buyers and sellers', icon: <Store size={22} color="var(--theme-accent, #06b6d4)" /> },
+  { id: 'system-internal', name: 'Internal Tool', desc: 'Internal tooling or developer productivity', icon: <Wrench size={22} color="var(--theme-accent, #06b6d4)" /> },
   { id: null, name: 'Start Blank', desc: 'No template, just free-form interview', icon: <PenLine size={22} color="#666" /> },
 ] as const;
 
