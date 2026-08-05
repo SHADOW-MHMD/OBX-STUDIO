@@ -192,6 +192,7 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
       id: n.id,
       name: n.name || n.label || n.data?.label || n.id,
       category: n.category ?? n.type ?? 'default',
+      description: n.description,
     }));
     const normalizedEdges = rawEdges.map((e: any) => ({
       source: typeof e.source === 'string' ? e.source : e.source?.id,
@@ -230,8 +231,11 @@ interviewRoutes.post("/:id/message", requireAuth, async (c) => {
     const openRouterKey = await decryptKey(dbUserRow.openrouter_key, c.env.ENCRYPTION_KEY);
     const openRouterModel = dbUserRow.openrouter_model || undefined;
 
+    const finalMessages = allMessages.results.filter(m => m.role === 'system')
+      .concat(allMessages.results.filter(m => m.role !== 'system').slice(-12));
+
     stream = await streamChatCompletion(
-      allMessages.results as any,
+      finalMessages as any,
       openRouterKey,
       openRouterModel,
       900  // cap interview turns — prevents runaway document generation

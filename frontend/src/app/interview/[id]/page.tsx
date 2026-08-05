@@ -593,11 +593,16 @@ export default function InterviewPage() {
                     )
                 );
               } else if (update.action === 'update_node' && update.node) {
-                newNodes = newNodes.map((n) =>
-                  n.id === update.node.id
-                    ? { ...n, name: update.node.new_label ?? n.name, category: update.node.new_category ?? n.category }
-                    : n
-                );
+                const updatedNode = update.node;
+                const nodeIndex = newNodes.findIndex((n) => n.id === updatedNode.id);
+                if (nodeIndex !== -1) {
+                  newNodes[nodeIndex] = {
+                    ...newNodes[nodeIndex],
+                    name: updatedNode.new_label || updatedNode.name || newNodes[nodeIndex].name,
+                    category: updatedNode.new_category || updatedNode.category || newNodes[nodeIndex].category,
+                    description: updatedNode.description || newNodes[nodeIndex].description
+                  };
+                }
               }
             });
             updateGraph(newNodes, newLinks);
@@ -620,14 +625,32 @@ export default function InterviewPage() {
   }, [inputValue, sending, isDone, id, nodes, links, focusedNode, mode, updateGraph]);
 
   const handleNodeDelete = useCallback((node: Node2D) => {
-    if (node.id === 'idea') return; // protect root
-    const newNodes = nodes.filter((n) => n.id !== node.id);
-    const newLinks = links.filter(
-      (l) =>
-        (l.source !== node.id && (l.source as any)?.id !== node.id) &&
-        (l.target !== node.id && (l.target as any)?.id !== node.id)
-    );
-    updateGraph(newNodes, newLinks);
+    const nodeId = node.id;
+    if (nodeId === 'idea') return;
+    setNodes(prev => prev.filter(n => n.id !== nodeId));
+    setLinks(prev => prev.filter(l => 
+      (l.source !== nodeId && (l.source as any)?.id !== nodeId) && 
+      (l.target !== nodeId && (l.target as any)?.id !== nodeId)
+    ));
+    // Immediately persist to DB in background
+    setTimeout(() => {
+      updateGraph(
+        nodes.filter(n => n.id !== nodeId),
+        links.filter(l => 
+          (l.source !== nodeId && (l.source as any)?.id !== nodeId) && 
+          (l.target !== nodeId && (l.target as any)?.id !== nodeId)
+        )
+      );
+    }, 100);
+  }, [nodes, links, updateGraph]);
+
+  const handleNodeUpdate = useCallback((nodeId: string, updates: Partial<Node2D>) => {
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, ...updates } : n));
+    // Persist
+    setTimeout(() => {
+      const newNodes = nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n);
+      updateGraph(newNodes, links);
+    }, 100);
   }, [nodes, links, updateGraph]);
 
   const handleOptionClick = useCallback((opt: string) => {
@@ -695,11 +718,12 @@ export default function InterviewPage() {
           <NeuralCanvas
             nodes={nodes}
             links={links}
-            onNodeClick={(node) => {
-              setFocusedNode(node);
+            onNodeClick={(n) => {
+              setFocusedNode(n);
               inputRef.current?.focus();
             }}
             onNodeDelete={handleNodeDelete}
+            onNodeUpdate={handleNodeUpdate}
           />
           <CanvasOverlay nodeCount={nodes.length} linkCount={links.length} />
         </div>

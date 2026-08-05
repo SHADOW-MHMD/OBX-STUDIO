@@ -143,7 +143,7 @@ ${modeInstruction}
     { "action": "add_edge", "source": "a-id", "target": "b-id", "label": "cross-link relationship" },
     { "action": "delete_node", "node_id": "slug-to-remove" },
     { "action": "delete_edge", "source": "a-id", "target": "b-id" },
-    { "action": "update_node", "node": { "id": "existing-id", "new_label": "Updated Name", "new_category": "feature" } }
+    { "action": "update_node", "node": { "id": "existing-id", "new_label": "Updated Name", "new_category": "feature", "description": "Important memories, notes, facts, or summaries here" } }
   ],
   "done": false
 }
@@ -158,6 +158,7 @@ ${modeInstruction}
 5. Node names: 2-4 words max. No verbs — use nouns.
 6. Check [CANVAS MEMORY] before adding nodes to avoid duplicates.
 7. Fix any ORPHAN nodes you see in [CANVAS MEMORY] by adding an add_edge action.
+8. Store context in nodes: use update_node to add a "description" containing facts, decisions, and memories to prevent forgetting context as the conversation grows.
 
 --- CANVAS CATEGORY GUIDE ---
 
@@ -177,7 +178,7 @@ When done, add a 5-word "summary" field.
 }
 // ─── Canvas memory system message ─────────────────────────────────────────────
 
-export interface CanvasNode { id: string; name: string; category: string; }
+export interface CanvasNode { id: string; name: string; category: string; description?: string; }
 export interface CanvasEdge { source: string; target: string; label?: string; }
 
 export function buildCanvasMemoryMessage(
@@ -200,7 +201,8 @@ export function buildCanvasMemoryMessage(
       .map((e) => (e.source === n.id ? `→ ${e.target}` : `← ${e.source}`))
       .join(', ');
     const isOrphan = n.id !== 'idea' && !connectedIds.has(n.id);
-    return `  • ${n.id} [${n.category}] "${n.name}"${connections ? ` (${connections})` : ''}${isOrphan ? '  ⚠️ ORPHAN — NO CONNECTIONS' : ''}`;
+    const memo = n.description ? ` | Mem: "${n.description}"` : '';
+    return `  • ${n.id} [${n.category}] "${n.name}"${memo}${connections ? ` (${connections})` : ''}${isOrphan ? '  ⚠️ ORPHAN — NO CONNECTIONS' : ''}`;
   });
 
   const edgeLines = edges.map(

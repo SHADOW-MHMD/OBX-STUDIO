@@ -38,9 +38,10 @@ export interface Node2D {
   _spawnFrame?: number;
   _pulseRadius?: number;
   _pulseAlpha?: number;
+  description?: string;
 }
 
-export interface Link2D {
+export interface Link2D extends d3.SimulationLinkDatum<Node2D> {
   source: string | Node2D;
   target: string | Node2D;
   label?: string;
@@ -55,6 +56,7 @@ interface NeuralCanvasProps {
   links: Link2D[];
   onNodeClick?: (node: Node2D) => void;
   onNodeDelete?: (node: Node2D) => void;
+  onNodeUpdate?: (nodeId: string, updates: Partial<Node2D>) => void;
 }
 
 // ─── Color palette ────────────────────────────────────────────────────────────
@@ -86,6 +88,7 @@ export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
   links,
   onNodeClick,
   onNodeDelete,
+  onNodeUpdate,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -550,8 +553,8 @@ export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
   const popoverStyle = useMemo((): React.CSSProperties => {
     if (!popoverPos || !containerRef.current) return { display: 'none' };
     const { w, h } = dimensions;
-    const popW = 240;
-    const popH = 220; // taller now for delete button
+    const popW = 260;
+    const popH = 340; // taller now for textarea + delete button
     let left = popoverPos.x + 16;
     let top = popoverPos.y - popH / 2;
 
@@ -630,6 +633,37 @@ export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Description Textarea */}
+            <div style={{ marginBottom: '0.75rem' }}>
+              <textarea
+                value={selectedNode.description || ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  // Update locally for immediate UI response
+                  setSelectedNode({ ...selectedNode, description: val });
+                  // Fire callback to parent to persist
+                  if (onNodeUpdate) onNodeUpdate(selectedNode.id, { description: val });
+                }}
+                placeholder="Add context, memories, or facts here... AI can read and write this."
+                style={{
+                  width: '100%',
+                  height: '80px',
+                  background: 'rgba(0,0,0,0.3)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 6,
+                  color: '#ccc',
+                  fontSize: '0.75rem',
+                  padding: '0.5rem',
+                  resize: 'none',
+                  outline: 'none',
+                  fontFamily: 'inherit'
+                }}
+                onFocus={(e) => { e.target.style.borderColor = getNodeColor(selectedNode); }}
+                onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
 
             {/* Ask AI button */}
             <button
