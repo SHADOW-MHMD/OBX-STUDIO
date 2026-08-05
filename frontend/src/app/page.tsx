@@ -12,7 +12,7 @@ import {
   Key,
   Network,
   MessageSquareWarning,
-  Github,
+  Code,
   ChevronRight,
   Sparkles,
   Check,
@@ -107,7 +107,7 @@ const FEATURES = [
     desc: "The AI acts like a Senior Staff Engineer, finding holes in your architecture before you ever write code.",
   },
   {
-    icon: Github,
+    icon: Code,
     title: "100% Open Source",
     desc: "Deploy the entire stack yourself on Cloudflare Pages and Workers. No vendor lock-in.",
   },
