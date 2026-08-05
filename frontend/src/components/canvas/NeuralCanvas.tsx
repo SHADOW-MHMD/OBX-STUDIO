@@ -179,6 +179,14 @@ export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
       };
     });
 
+    // Deep clone links and extract IDs so D3 re-resolves them to the NEW mergedNodes.
+    // Otherwise, D3 caches old node objects from the previous simulation, and lines won't move with new nodes.
+    const mergedLinks = links.map(l => ({
+      ...l,
+      source: typeof l.source === 'object' ? (l.source as any).id : l.source,
+      target: typeof l.target === 'object' ? (l.target as any).id : l.target
+    }));
+
     if (simRef.current) {
       simRef.current.stop();
     }
@@ -192,7 +200,7 @@ export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
       .force(
         'link',
         d3
-          .forceLink<Node2D, Link2D>(links as any)
+          .forceLink<Node2D, Link2D>(mergedLinks as any)
           .id((d) => d.id)
           .distance(90)
           .strength(0.4)
