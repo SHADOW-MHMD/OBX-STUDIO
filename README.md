@@ -107,6 +107,4 @@ npx wrangler d1 execute obx-studio-db \
 
 ---
 
-## License
 
-MIT — open source, self-hostable. See `.env.example` to run your own instance.

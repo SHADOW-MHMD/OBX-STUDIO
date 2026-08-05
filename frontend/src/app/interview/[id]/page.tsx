@@ -545,15 +545,29 @@ export default function InterviewPage() {
                         (l.target === nodeId || (l.target as any)?.id === nodeId)
                     );
                     if (!edgeExists) newLinks.push({ source: parentId, target: nodeId });
+                  } else {
+                    // Fallback: if no parent_id given, connect to 'idea' root to prevent isolated floating nodes
+                    const rootExists = newLinks.some(
+                      (l) =>
+                        (l.source === 'idea' || (l.source as any)?.id === 'idea') &&
+                        (l.target === nodeId || (l.target as any)?.id === nodeId)
+                    );
+                    if (!rootExists && nodeId !== 'idea' && newNodes.some(n => n.id === 'idea')) {
+                       newLinks.push({ source: 'idea', target: nodeId });
+                    }
                   }
-                  // If no parent_id provided, leave as orphan — the red pulse alert + AI notice handles it
                 }
               } else if (update.action === 'add_edge') {
                 // AI emits: { action: 'add_edge', source: 'a', target: 'b', label: '...' }
-                // (source/target are top-level, NOT nested inside update.edge)
                 const sid = update.source ?? update.edge?.source;
                 const tid = update.target ?? update.edge?.target;
                 if (!sid || !tid) return;
+                
+                // Only create edge if BOTH nodes actually exist in the graph (prevents D3 crash)
+                const sourceExists = newNodes.some((n) => n.id === sid);
+                const targetExists = newNodes.some((n) => n.id === tid);
+                if (!sourceExists || !targetExists) return;
+
                 const exists = newLinks.some(
                   (l) =>
                     (l.source === sid || (l.source as any)?.id === sid) &&

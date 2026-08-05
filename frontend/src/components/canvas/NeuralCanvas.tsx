@@ -187,6 +187,8 @@ export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
       .forceSimulation<Node2D>(mergedNodes)
       .force('charge', d3.forceManyBody<Node2D>().strength(-220))
       .force('center', d3.forceCenter(dimensions.w / 2, dimensions.h / 2).strength(0.03))
+      // Add a weak radial force pulling everything towards center so orphans don't drift away
+      .force('radial', d3.forceRadial(100, dimensions.w / 2, dimensions.h / 2).strength(0.05))
       .force(
         'link',
         d3
@@ -254,22 +256,21 @@ export const NeuralCanvas: React.FC<NeuralCanvasProps> = ({
         ctx!.moveTo(s.x!, s.y!);
         ctx!.lineTo(t.x!, t.y!);
         ctx!.strokeStyle = srcColor;
-        // Divide by k so the line stays exactly 1.2px on screen at any zoom level
-        ctx!.lineWidth = 1.2 / k;
+        ctx!.lineWidth = 1.2;
         ctx!.globalAlpha = alpha;
-        ctx!.shadowBlur = isConnected ? 10 / k : 0;
+        ctx!.shadowBlur = isConnected ? 10 : 0;
         ctx!.shadowColor = srcColor;
         ctx!.stroke();
         ctx!.shadowBlur = 0;
         ctx!.globalAlpha = 1;
 
-        // Directional particle along edge (zoom-invariant radius)
+        // Directional particle along edge
         if (isConnected) {
           const t_pos = ((frameRef.current * 0.004) % 1);
           const px = s.x! + (t.x! - s.x!) * t_pos;
           const py = s.y! + (t.y! - s.y!) * t_pos;
           ctx!.beginPath();
-          ctx!.arc(px, py, 1.5 / k, 0, Math.PI * 2);
+          ctx!.arc(px, py, 1.5, 0, Math.PI * 2);
           ctx!.fillStyle = srcColor;
           ctx!.globalAlpha = 0.8;
           ctx!.fill();
