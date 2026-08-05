@@ -627,30 +627,19 @@ export default function InterviewPage() {
   const handleNodeDelete = useCallback((node: Node2D) => {
     const nodeId = node.id;
     if (nodeId === 'idea') return;
-    setNodes(prev => prev.filter(n => n.id !== nodeId));
-    setLinks(prev => prev.filter(l => 
+    const newNodes = nodes.filter(n => n.id !== nodeId);
+    const newLinks = links.filter(l => 
       (l.source !== nodeId && (l.source as any)?.id !== nodeId) && 
       (l.target !== nodeId && (l.target as any)?.id !== nodeId)
-    ));
-    // Immediately persist to DB in background
-    setTimeout(() => {
-      updateGraph(
-        nodes.filter(n => n.id !== nodeId),
-        links.filter(l => 
-          (l.source !== nodeId && (l.source as any)?.id !== nodeId) && 
-          (l.target !== nodeId && (l.target as any)?.id !== nodeId)
-        )
-      );
-    }, 100);
+    );
+    // Immediately persist to DB
+    updateGraph(newNodes, newLinks);
   }, [nodes, links, updateGraph]);
 
   const handleNodeUpdate = useCallback((nodeId: string, updates: Partial<Node2D>) => {
-    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, ...updates } : n));
+    const newNodes = nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n);
     // Persist
-    setTimeout(() => {
-      const newNodes = nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n);
-      updateGraph(newNodes, links);
-    }, 100);
+    updateGraph(newNodes, links);
   }, [nodes, links, updateGraph]);
 
   const handleOptionClick = useCallback((opt: string) => {
